@@ -14,12 +14,12 @@
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
     import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
-    import { getFirestore, doc, setDoc, getDoc, onSnapshot, collection, getDocs } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+    import { getFirestore, doc, setDoc, getDoc, collection, getDocs } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
     // Configuración de variables de entorno del sistema (o fallback local)
     const appId = typeof __app_id !== 'undefined' ? __app_id : 'agenda-cultural-cdmx';
 
-    // CONFIGURACIÓN PÚBLICA DE FIREBASE (Se puede sobreescribir desde el panel de ajustes en vivo)
+    // CONFIGURACIÓN PÚBLICA DE FIREBASE (Se sobreescribe desde Ajustes / Nube)
     let FIREBASE_CONFIG = {
       apiKey: "",
       authDomain: "",
@@ -66,7 +66,7 @@
         auth = getAuth(app);
         db = getFirestore(app);
 
-        // REGLA 3: Autenticación obligatoria antes de cualquier consulta a Firestore
+        // Autenticación obligatoria antes de cualquier consulta a Firestore
         if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
           await signInWithCustomToken(auth, __initial_auth_token);
         } else {
@@ -86,12 +86,11 @@
       }
     }
 
-    // API Global de persistencia segura (Cumple REGLA 1, 2 y 3)
+    // API Global de persistencia segura
     window.CloudDB = {
       enabled: () => cloudEnabled,
       userId: () => currentUser ? currentUser.uid : (localStorage.getItem('agendaUserId') || 'guest_user'),
 
-      // REGLA 1: Guardar bajo rutas estrictas y seguras
       async savePlan(dateKey, eventIds) {
         if (!cloudEnabled || !currentUser) return;
         try {
@@ -108,7 +107,6 @@
         } catch (e) { console.warn("Error al guardar favoritos:", e); }
       },
 
-      // REGLA 2: No utilizar queries complejas (filtramos localmente en memoria)
       async loadAllPlans() {
         if (!cloudEnabled || !currentUser) return null;
         try {
@@ -146,7 +144,8 @@
       --fever-purple: #4c1d95;
       --free-green: #065f46;
       --wildcard-amber: #92400e;
-      --header-h: 140px;
+      --header-h: 155px;
+      /* Altura de referencia, se recalcula dinámicamente con JS */
     }
 
     * {
@@ -175,6 +174,7 @@
 
     .main-content {
       padding-top: var(--header-h);
+      transition: padding-top 0.2s ease-out;
     }
 
     .text-guinda {
@@ -212,7 +212,7 @@
       background: linear-gradient(135deg, #ffffff, #fffbeb);
     }
 
-    /* Badges estilizados */
+    /* Badges de las Tarjetas */
     .badge {
       display: inline-flex;
       align-items: center;
@@ -253,7 +253,7 @@
     .badge-wildcard {
       background: #fef3c7;
       color: var(--wildcard-amber);
-      border: 1px solid #fcd34d;
+      border: 1px solid #fde68a;
     }
 
     .badge-pet {
@@ -303,7 +303,7 @@
       overflow-y: auto;
     }
 
-    /* Línea de tiempo estilizada */
+    /* Línea de tiempo */
     .timeline-dot {
       position: relative;
     }
@@ -353,42 +353,68 @@
       }
     }
 
-    @media(max-width: 768px) {
-      .plan-panel {
-        position: static;
-        max-height: none;
-      }
+    .cloud-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+    }
 
-      :root {
-        --header-h: 195px;
-      }
+    .cloud-dot.on {
+      background: #22c55e;
+    }
+
+    .cloud-dot.off {
+      background: #a1a1aa;
     }
   </style>
 </head>
 
 <body class="text-gray-800">
 
-  <!-- ══ ENCABEZADO FIJO / STICKY HEADER ════════════════ -->
+  <!-- ══ STICKY HEADER ORIGINAL DE ALTA FIDELIDAD ════════════════ -->
   <div id="stickyHeader" class="shadow-md bg-white">
     <div style="background: linear-gradient(135deg, #6e0d3c, #4a0828);" class="text-white">
       <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+
+        <!-- Lado Izquierdo: Logotipo e Identidad -->
         <div class="flex items-center gap-3">
           <span class="text-3xl">🦅</span>
           <div>
             <h1 class="text-lg md:text-2xl font-bold tracking-tight">Agenda Cultural CDMX</h1>
             <p class="text-xs text-pink-200/80 font-medium">Prioridad Comunidad Politécnica e Instituciones Aliadas</p>
           </div>
+          <!-- Indicador de Nube Sincronizada -->
+          <div id="cloudBadge" class="ml-2">
+            <button onclick="showModal('configModal')"
+              class="flex items-center gap-1.5 bg-white/10 hover:bg-white/20 rounded-xl px-2.5 py-1 text-xs font-semibold transition-all">
+              <span class="cloud-dot off" id="cloudDot"></span>
+              <span id="cloudLabel" class="text-[10px]">☁️ Sin nube</span>
+            </button>
+          </div>
         </div>
 
+        <!-- Lado Derecho: Inputs del Header y Controles Rápidos -->
         <div class="flex items-center gap-3 flex-wrap">
           <div class="flex flex-col">
             <label class="text-[10px] uppercase tracking-wider opacity-70 mb-0.5 font-bold">📅 Seleccionar Día</label>
             <input type="date" id="datePicker"
               class="rounded-xl px-3 py-1.5 text-xs font-semibold text-gray-800 bg-white border-0 shadow-sm focus:outline-none focus:ring-2 focus:ring-pink-500">
           </div>
-          <div class="flex gap-1.5 mt-4 md:mt-0">
+
+          <div class="flex flex-col">
+            <label class="text-[10px] uppercase tracking-wider opacity-70 mb-0.5 font-bold">
+              🔑 Gemini API Key
+              <button onclick="showModal('configModal')"
+                class="underline hover:text-pink-200 font-bold ml-1 text-[9px]">¿Qué es?</button>
+            </label>
+            <input type="password" id="geminiKey" placeholder="AIzaSy... (Guarda en la app)"
+              class="rounded-xl px-3 py-1.5 text-xs font-semibold text-gray-800 bg-white border-0 shadow-sm focus:outline-none focus:ring-2 focus:ring-pink-500 w-44">
+          </div>
+
+          <div class="flex gap-1.5 self-end">
             <button onclick="showModal('configModal')"
-              class="bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5">
+              class="bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-1">
               ⚙️ Ajustes / Nube
             </button>
             <button onclick="showModal('helpModal')"
@@ -594,7 +620,7 @@
     </div>
   </div>
 
-  <!-- ══ MODAL DE CONFIGURACIÓN FIREBASE Y GEMINI (CON TRADUCCIONES EN ESPAÑOL) ════════════════ -->
+  <!-- ══ MODAL DE CONFIGURACIÓN FIREBASE Y GEMINI ════════════════ -->
   <div id="configModal" class="modal-overlay hidden">
     <div class="bg-white rounded-3xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6">
       <div class="flex items-center justify-between mb-4">
@@ -648,9 +674,6 @@
 
   <!-- ══ SCRIPT DE LA AGENDA ════════════════ -->
   <script>
-    // ══════════════════════════════════════════════════════
-    // BASE DE DATOS LOCAL EXCELENTE (CDMX COMPLETO - SIN UNAM)
-    // ══════════════════════════════════════════════════════
     const CDMX_EVENTS = [
       // ── EVENTOS INSTITUTO POLITÉCNICO NACIONAL (IPN) ──────────────────────────
       {
@@ -911,22 +934,34 @@
       }
     ];
 
-    // ══════════════════════════════════════════════════════
-    // ESTADO GLOBAL DE LA APLICACIÓN
-    // ══════════════════════════════════════════════════════
     let plansByDate = JSON.parse(localStorage.getItem('agendaPlans_v5') || '{}');
     let favorites = new Set(JSON.parse(localStorage.getItem('agendaFavs_v5') || '[]'));
     let currentFilter = 'all';
 
-    // Cargar Claves desde LocalStorage
+    // Cargar Claves de Gemini desde LocalStorage
     const savedGeminiKey = localStorage.getItem('gemini_api_key');
     if (savedGeminiKey) {
+      document.getElementById('geminiKey').value = savedGeminiKey;
       document.getElementById('geminiKeyInput').value = savedGeminiKey;
     }
 
+    // Sincronizar el Badge de Estado de Firebase
+    function updateCloudBadgeState() {
+      const dot = document.getElementById('cloudDot');
+      const label = document.getElementById('cloudLabel');
+      if (window.CloudDB && window.CloudDB.enabled()) {
+        dot.className = "cloud-dot on";
+        label.textContent = "☁️ Nube activa";
+      } else {
+        dot.className = "cloud-dot off";
+        label.textContent = "☁️ Sin nube";
+      }
+    }
+
     // Escuchar evento de sincronización con la nube
-    document.addEventListener('firebase-connected', async (e) => {
+    document.addEventListener('firebase-connected', async () => {
       console.log("Sincronizando planes de la nube...");
+      updateCloudBadgeState();
       const cloudPlans = await window.CloudDB.loadAllPlans();
       const cloudFavs = await window.CloudDB.loadFavorites();
 
@@ -948,8 +983,10 @@
 
       if (geminiVal) {
         localStorage.setItem('gemini_api_key', geminiVal);
+        document.getElementById('geminiKey').value = geminiVal;
       } else {
         localStorage.removeItem('gemini_api_key');
+        document.getElementById('geminiKey').value = "";
       }
 
       if (fbVal) {
@@ -969,16 +1006,40 @@
       hideModal('configModal');
     }
 
+    // Ajusta dinámicamente el padding-top de la sección principal para evitar solapamientos
+    function adjustStickyPadding() {
+      const header = document.getElementById('stickyHeader');
+      if (header) {
+        const h = header.offsetHeight;
+        document.documentElement.style.setProperty('--header-h', (h + 4) + 'px');
+      }
+    }
+
+    // Escuchadores de redimensionamiento
+    window.addEventListener('resize', adjustStickyPadding);
+    const headerObserver = new ResizeObserver(adjustStickyPadding);
+    document.addEventListener('DOMContentLoaded', () => {
+      const header = document.getElementById('stickyHeader');
+      if (header) headerObserver.observe(header);
+      adjustStickyPadding();
+    });
+
     // ══════════════════════════════════════════════════════
     // INICIALIZACIÓN DE LA UI
     // ══════════════════════════════════════════════════════
     document.addEventListener('DOMContentLoaded', () => {
       const dp = document.getElementById('datePicker');
-      // Por defecto hoy
       const todayStr = new Date().toISOString().split('T')[0];
       dp.value = todayStr;
 
-      // Escuchadores de cambio
+      // Escuchador de API Key directo del header
+      const gkDirect = document.getElementById('geminiKey');
+      gkDirect.addEventListener('input', (e) => {
+        const val = e.target.value.trim();
+        localStorage.setItem('gemini_api_key', val);
+        document.getElementById('geminiKeyInput').value = val;
+      });
+
       dp.addEventListener('change', () => {
         renderAll();
       });
@@ -987,7 +1048,6 @@
         renderEvents();
       });
 
-      // Filtros rápidos
       document.getElementById('filterChips').addEventListener('click', (e) => {
         const chip = e.target.closest('[data-filter]');
         if (!chip) return;
@@ -998,8 +1058,8 @@
         renderEvents();
       });
 
-      // Render inicial
       renderAll();
+      updateCloudBadgeState();
     });
 
     function renderAll() {
@@ -1007,6 +1067,7 @@
       renderEvents();
       renderPlanUI();
       renderFavPanel();
+      setTimeout(adjustStickyPadding, 100);
     }
 
     function updatePlanDateLabel() {
@@ -1039,9 +1100,7 @@
 
       container.innerHTML = '';
 
-      // Filtrado de eventos locales
       let filtered = CDMX_EVENTS.filter(ev => {
-        // Filtro por término de búsqueda
         const matchesSearch = ev.title.toLowerCase().includes(searchVal) ||
           ev.location.toLowerCase().includes(searchVal) ||
           ev.neighborhood.toLowerCase().includes(searchVal) ||
@@ -1049,7 +1108,6 @@
 
         if (!matchesSearch) return false;
 
-        // Filtro por categoría lateral
         switch (currentFilter) {
           case 'ipn': return ev.inst === 'IPN';
           case 'premium': return ev.inst === 'Premium';
@@ -1066,7 +1124,6 @@
         }
       });
 
-      // Orden de precedencia: Primero de Alta Prioridad, luego por horario, luego comodines
       filtered.sort((a, b) => {
         if (a.priority && !b.priority) return -1;
         if (!a.priority && b.priority) return 1;
@@ -1091,7 +1148,6 @@
         wrapper.innerHTML = cardHTML;
         const cardEl = wrapper.firstElementChild;
 
-        // Animación suave de aparición en cascada
         cardEl.classList.add('card-enter');
         cardEl.style.animationDelay = `${idx * 0.04}s`;
 
@@ -1111,11 +1167,9 @@
 
       const isIPN = ev.inst === 'IPN';
 
-      // Enlaces de Navegación Exacta
       const mapsLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(ev.address)}`;
       const wazeLink = `https://waze.com/ul?q=${encodeURIComponent(ev.address)}&navigate=yes`;
 
-      // Guardado inteligente a Google Calendar
       const dateStr = getDateKey().replace(/-/g, '');
       const startTimeStr = ev.time === 'Flexible' ? '090000' : ev.time.replace(':', '') + '00';
       const endTimeStr = ev.endTime === 'Flexible' ? '180000' : ev.endTime.replace(':', '') + '00';
@@ -1138,7 +1192,7 @@
       </div>
 
       <div class="mb-3">
-        <h3 class="font-bold text-gray-900 text-base leading-snug hover:text-guinda transition-colors">${ev.title}</h3>
+        <h3 class="font-bold text-gray-900 text-lg leading-snug hover:text-guinda transition-colors">${ev.title}</h3>
         <p class="text-xs text-gray-500 mt-1 flex items-center gap-1">
           📍 <span class="font-bold text-gray-700">${ev.location}</span> · <span class="text-gray-400">${ev.neighborhood}</span>
         </p>
@@ -1185,7 +1239,6 @@
       if (plan.includes(id)) return;
       plan.push(id);
 
-      // Guardar en almacenamiento y nube si está activa
       localStorage.setItem('agendaPlans_v5', JSON.stringify(plansByDate));
       if (window.CloudDB.enabled()) {
         window.CloudDB.savePlan(getDateKey(), plan);
@@ -1229,7 +1282,6 @@
 
       const matchedEvents = plan.map(id => CDMX_EVENTS.find(ev => ev.id === id)).filter(Boolean);
 
-      // Calcular métricas
       const totalCost = matchedEvents.reduce((acc, curr) => acc + curr.costVal, 0);
       const totalPet = matchedEvents.filter(ev => ev.petFriendly).length;
 
@@ -1246,7 +1298,6 @@
       planEmptyEl.style.display = 'none';
       planActionsEl.classList.remove('hidden');
 
-      // Ordenar cronológicamente para el itinerario del planificador
       matchedEvents.sort((a, b) => {
         if (a.time === 'Flexible' && b.time !== 'Flexible') return 1;
         if (a.time !== 'Flexible' && b.time === 'Flexible') return -1;
@@ -1277,9 +1328,6 @@
       });
     }
 
-    // ══════════════════════════════════════════════════════
-    // EXPORTAR PLAN DE DÍA (.ICS) COMPATIBLE
-    // ══════════════════════════════════════════════════════
     function exportIcal() {
       const plan = getPlanForCurrentDate();
       if (plan.length === 0) {
@@ -1371,7 +1419,7 @@
     }
 
     // ══════════════════════════════════════════════════════
-    // INTEGRACIÓN INTELIGENTE DE GEMINI (CON MODELO ESTABLE GA)
+    // INTEGRACIÓN INTELIGENTE DE GEMINI 2.5
     // (Con Exponential Backoff de hasta 5 intentos)
     // ══════════════════════════════════════════════════════
     async function askGemini() {
@@ -1382,7 +1430,7 @@
       if (!userKey) {
         responseBox.innerHTML = `
       <div class="text-red-600 font-semibold mb-1">🔑 Falta Configurar API Key</div>
-      Para que la IA de Gemini analice tu ruta en tiempo real, ingresa tu llave gratuita en la sección de <button onclick="showModal('configModal')" class="text-guinda font-bold underline">Ajustes / Nube</button> de la barra superior.
+      Para que la IA de Gemini analice tu ruta en tiempo real, ingresa tu llave gratuita en el input <strong>Gemini API Key</strong> del encabezado o en los <button onclick="showModal('configModal')" class="text-guinda font-bold underline font-semibold">Ajustes</button>.
     `;
         return;
       }
@@ -1411,7 +1459,6 @@
 
       responseBox.textContent = '🤖 Analizando itinerario con Gemini 2.5 y optimizando distancias...';
 
-      // API con reintentos mediante retroceso exponencial (Exponential Backoff)
       const fetchWithRetry = async (url, options, retries = 5, delay = 1000) => {
         try {
           const res = await fetch(url, options);
@@ -1432,7 +1479,6 @@
         }
       };
 
-      // LLAMADA REESTRUCTURADA AL MODELO GENERAL ESTABLE GA (Elimina el preview rate-limited)
       const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${userKey}`;
       const payload = {
         contents: [{
@@ -1451,7 +1497,6 @@
         const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text;
 
         if (generatedText) {
-          // Reemplazar saltos de línea con formato HTML legible
           responseBox.innerHTML = `
         <div class="prose prose-sm text-gray-700">
           <p class="font-bold text-indigo-600 mb-2">✨ Recomendación de Itinerario de IA:</p>
@@ -1471,9 +1516,7 @@
       }
     }
 
-    // ══════════════════════════════════════════════════════
-    // CONTROLADORES DE MODALES
-    // ══════════════════════════════════════════════════════
+    // Controladores de Modales
     function showModal(id) {
       document.getElementById(id).classList.remove('hidden');
     }
@@ -1482,7 +1525,6 @@
       document.getElementById(id).classList.add('hidden');
     }
 
-    // Cerrar modales al hacer clic fuera de la tarjeta
     window.addEventListener('click', (e) => {
       if (e.target.classList.contains('modal-overlay')) {
         e.target.classList.add('hidden');
