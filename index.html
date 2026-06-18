@@ -21,13 +21,14 @@
     // Crea tu propio proyecto gratis en https://console.firebase.google.com
     // Instrucciones en el modal de ayuda de la app (botón ☁️ en el header)
     // ══════════════════════════════════════════════════
-    const FIREBASE_CONFIG = {
-      apiKey: "TU_API_KEY_AQUI",
-      authDomain: "TU_PROYECTO.firebaseapp.com",
-      projectId: "TU_PROYECTO_ID",
-      storageBucket: "TU_PROYECTO.appspot.com",
-      messagingSenderId: "TU_MESSAGING_ID",
-      appId: "TU_APP_ID"
+    const firebaseConfig = {
+      apiKey: "AIzaSyB1bu6Duw0-klYf7Bpyo5lEB-72xJMMuic",
+      authDomain: "agenda-cdmx.firebaseapp.com",
+      projectId: "agenda-cdmx",
+      storageBucket: "agenda-cdmx.firebasestorage.app",
+      messagingSenderId: "28340886292",
+      appId: "1:28340886292:web:fb685ba5e7b09755b2c001",
+      measurementId: "G-ZVWVHTNG9D"
     };
 
     // ID de usuario — se genera una vez y se guarda en localStorage
@@ -47,9 +48,9 @@
     let cloudEnabled = false;
 
     // Inicializar Firebase solo si la config fue personalizada
-    if (FIREBASE_CONFIG.apiKey !== "TU_API_KEY_AQUI") {
+    if (firebaseConfig.apiKey !== "TU_API_KEY_AQUI") {
       try {
-        const app = initializeApp(FIREBASE_CONFIG);
+        const app = initializeApp(firebaseConfig);
         db = getFirestore(app);
         cloudEnabled = true;
         console.log('☁️ Firebase conectado como:', USER_ID);
@@ -1394,6 +1395,7 @@
     let fetchedEventsByDate = JSON.parse(localStorage.getItem('agendaFetchedEvents') || '{}');
     let knownEvents = JSON.parse(localStorage.getItem('agendaKnownEvents') || '{}');
     let fallbackActiveForDate = {};
+    let lastFetchError = '';
     let currentFilter = 'all';
 
     function savePlansLocal() {
@@ -1462,6 +1464,9 @@
       // Obtener API key del frontend para llamadas directas/headers
       const key = document.getElementById('geminiKey') ? document.getElementById('geminiKey').value.trim() : '';
 
+      // Resetear error de carga previo
+      lastFetchError = '';
+
       // 3. Intentar consultar el endpoint local del servidor (/api/get-events)
       try {
         const headers = {};
@@ -1482,9 +1487,12 @@
             return events;
           }
         } else {
+          const errData = await res.json().catch(() => ({}));
+          lastFetchError = `API local /api/get-events devolvió status ${res.status}: ${errData?.error || 'Sin mensaje'}`;
           console.warn(`Endpoint /api/get-events devolvió status ${res.status}`);
         }
       } catch (err) {
+        lastFetchError = `API local falló (es normal si corres de forma local sin un servidor): ${err.message || err}`;
         console.warn('No se pudo conectar a /api/get-events:', err);
       }
 
@@ -1494,7 +1502,8 @@
           console.log('Intentando llamada directa a Gemini API...');
           const prompt = `Busca en internet eventos reales, exposiciones de museos, conciertos, obras de teatro, festivales, mercaditos, bazares, meetups o actividades culturales o sociales que ocurran el día ${dateKey} (año, mes, día específico) en la Ciudad de México (CDMX).
 Consulta fuentes populares como "Donde Ir CDMX", "Cartelera de la Ciudad de México", "Ticketmaster México", "Superboletos", "Boletia", "Eventbrite CDMX", etc.
-Debes devolver al menos 30 eventos reales y activos que se lleven a cabo exactamente ese día. Si no hay suficientes eventos específicos para ese día exacto, busca eventos y exposiciones permanentes o de temporada que estén abiertos ese día de la semana.
+Intenta prioritariamente incluir eventos en grandes recintos y espacios icónicos de la ciudad como: Campo Marte, Palacio de los Deportes, WTC, Auditorio Nacional, Auditorio BlackBerry, Estadio GNP (antes Foro Sol), Estadio CDMX (Azul), Arena CDMX, explanadas de las alcaldías, ferias del libro, Teatro Telcel, Carpa Santa Fe, Zócalo Capitalino, etc.
+Debes devolver al menos 40 eventos reales y activos que se lleven a cabo exactamente ese día. Si no hay suficientes eventos específicos para ese día exacto, busca eventos y exposiciones permanentes o de temporada que estén abiertos ese día de la semana.
 Devuelve los resultados obligatoriamente como un arreglo JSON válido de objetos, y absolutamente NADA más (sin explicaciones, sin texto adicional, sin formato markdown de triple comilla invertida, solo el JSON puro que comience con [ y termine con ]). Cada objeto debe representar un evento con los siguientes campos exactos y estructurados:
 - id: un string único corto (ej. 'live_' + número aleatorio o correlativo)
 - time: string formato de 24 horas 'HH:MM' (ej. '19:00') o la palabra 'Flexible' si no tiene horario específico
@@ -1558,11 +1567,18 @@ Devuelve los resultados obligatoriamente como un arreglo JSON válido de objetos
               }
             }
           } else {
+            const errData = await response.json().catch(() => ({}));
+            lastFetchError = `Google API error ${response.status}: ${errData?.error?.message || response.statusText}`;
             console.warn(`Llamada directa a Gemini devolvió status ${response.status}`);
           }
         } catch (directErr) {
+          lastFetchError = `Llamada directa a Gemini falló (posible bloqueo CORS/red): ${directErr.message || directErr}`;
           console.warn('Error en llamada directa a Gemini API:', directErr);
         }
+      }
+
+      if (!key && !lastFetchError) {
+        lastFetchError = 'Falta configurar la API Key de Gemini en el panel superior derecho (header) para la búsqueda local.';
       }
 
       // 5. Fallback absoluto: Retornar null para indicar que debemos usar los estáticos CDMX_EVENTS
@@ -1664,22 +1680,32 @@ Devuelve los resultados obligatoriamente como un arreglo JSON válido de objetos
     // ══════════════════════════════════════════════════════
     // RENDER EVENTS
     // ══════════════════════════════════════════════════════
+    /**
+     * Filtra los eventos del día de acuerdo a la categoría seleccionada por el usuario.
+     * Retorna la lista ordenada por prioridad y horario (eventos "Solo hoy" primero,
+     * luego eventos con horario fijo, y finalmente comodines flexibles).
+     */
     function getFilteredEvents() {
+      // Si el filtro seleccionado es de ámbito nacional o de festivales, no filtramos la cartelera diaria
       if (currentFilter === 'foraneo' || currentFilter === 'festival') return [];
       const dateKey = getDateKey();
-      
+
       let evs = [];
+      // Determinar si tenemos eventos dinámicos cargados en caché para esta fecha
       const hasDynamic = fetchedEventsByDate[dateKey] && Array.isArray(fetchedEventsByDate[dateKey]) && fetchedEventsByDate[dateKey].length > 0;
-      
+
       if (hasDynamic && !fallbackActiveForDate[dateKey]) {
+        // Usar la lista de eventos dinámicos recuperados por la IA
         evs = fetchedEventsByDate[dateKey];
       } else {
+        // Fallback: Filtrar el listado estático predefinido (CDMX_EVENTS) basado en el día y mes de la fecha seleccionada
         const dateObj = new Date(dateKey + 'T12:00:00');
         const day = dateObj.getDay();
         const month = dateObj.getMonth() + 1;
         evs = CDMX_EVENTS.filter(e => eventApplies(e, day, month));
       }
 
+      // Aplicar el filtro de categoría seleccionado (chips del encabezado)
       switch (currentFilter) {
         case 'priority': evs = evs.filter(e => e.priority && !e.isWildcard); break;
         case 'ipn': evs = evs.filter(e => e.inst === 'IPN'); break;
@@ -1689,6 +1715,7 @@ Devuelve los resultados obligatoriamente como un arreglo JSON válido de objetos
         case 'pet': evs = evs.filter(e => e.petFriendly); break;
         case 'wildcard': evs = evs.filter(e => e.isWildcard); break;
         case 'sur': {
+          // Filtrado geográfico simple por palabras clave de la zona sur de CDMX
           const SUR = ['coyoacán', 'contreras', 'dinamos', 'pedregal', 'xochimilco', 'tlalpan', 'ajusco', 'del carmen', 'coyoacan', 'san angel', 'san jerónimo', 'san ángel', 'san jerónimo'];
           evs = evs.filter(e => { const loc = ((e.neighborhood || '') + ' ' + (e.address || '')).toLowerCase(); return SUR.some(k => loc.includes(k)); });
           break;
@@ -1696,6 +1723,7 @@ Devuelve los resultados obligatoriamente como un arreglo JSON válido de objetos
         case 'fav': evs = evs.filter(e => favorites.has(e.id)); break;
       }
 
+      // Ordenar: 1. Prioridad ("Solo hoy") ordenados por hora -> 2. Eventos normales por hora -> 3. Comodines al final
       const priority = evs.filter(e => e.priority && !e.isWildcard).sort((a, b) => (a.time || '').localeCompare(b.time || ''));
       const timed = evs.filter(e => !e.priority && !e.isWildcard && e.time !== 'Flexible').sort((a, b) => (a.time || '').localeCompare(b.time || ''));
       const wild = evs.filter(e => e.isWildcard);
@@ -1730,7 +1758,7 @@ Devuelve los resultados obligatoriamente como un arreglo JSON válido de objetos
       }
 
       const dateKey = getDateKey();
-      
+
       // Mostrar spinner de carga si no está en caché en memoria
       const hasLocalCache = fetchedEventsByDate[dateKey] && Array.isArray(fetchedEventsByDate[dateKey]) && fetchedEventsByDate[dateKey].length > 0;
       if (!hasLocalCache) {
@@ -1750,12 +1778,12 @@ Devuelve los resultados obligatoriamente como un arreglo JSON válido de objetos
       if (dateKey !== getDateKey()) return;
 
       cont.innerHTML = '';
-      
-      // Si se activó el fallback absoluto, mostrar una alerta discreta
+
+      // Si se activó el fallback absoluto, mostrar una alerta discreta con detalle del error
       if (fallbackActiveForDate[dateKey]) {
         const alertDiv = document.createElement('div');
         alertDiv.className = "mb-3 rounded-2xl p-3 text-xs bg-amber-50 border border-amber-200 text-amber-800 leading-normal";
-        alertDiv.innerHTML = "⚠️ <strong>Mostrando eventos de respaldo estáticos.</strong> Configura tu 🔑 Gemini API Key en el header o sube la app a Vercel para buscar eventos en tiempo real en internet.";
+        alertDiv.innerHTML = `⚠️ <strong>Mostrando eventos de respaldo estáticos.</strong> Configura tu 🔑 Gemini API Key en el header o sube la app a Vercel para buscar eventos en tiempo real en internet.<br><span class="text-red-700 font-semibold block mt-1.5">Detalle del error: ${lastFetchError || 'Ninguno especificado'}</span>`;
         cont.appendChild(alertDiv);
       }
 
@@ -1860,6 +1888,10 @@ Devuelve los resultados obligatoriamente como un arreglo JSON válido de objetos
           class="btn-sm btn-fav ${isFav ? 'active' : ''}" title="${isFav ? 'Quitar favorito' : 'Marcar favorito'}">
           ${isFav ? '❤️' : '🤍'}
         </button>
+        <button onclick="substituteEvent('${ev.id}')" id="subBtn_${ev.id}"
+          class="btn-sm bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100" title="Sustituir por otro evento similar">
+          🔄 Sustituir
+        </button>
       </div>
     </div>
   </div>`;
@@ -1937,6 +1969,180 @@ Devuelve los resultados obligatoriamente como un arreglo JSON válido de objetos
         btn.classList.toggle('active', isFav);
       }
       renderFavPanel();
+    }
+
+    /**
+     * Sustituye un evento específico de la cartelera del día por una alternativa real.
+     * Realiza una llamada a la API (o directo a Gemini si hay fallback local) solicitando un reemplazo.
+     * Migra automáticamente las selecciones de favoritos e itinerario al nuevo evento sugerido.
+     */
+    async function substituteEvent(id) {
+      const btn = document.getElementById('subBtn_' + id);
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = '🔄 Buscando...';
+      }
+
+      const dateKey = getDateKey();
+
+      // Buscar los detalles del evento que deseamos sustituir en la lista conocida de eventos
+      const targetEvent = CDMX_EVENTS.find(e => e.id === id) || knownEvents[id];
+      if (!targetEvent) {
+        alert('No se pudieron recuperar los detalles del evento a sustituir.');
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = '🔄 Sustituir';
+        }
+        return;
+      }
+
+      // Inicializar el arreglo de eventos dinámicos para este día si aún no se ha creado
+      // (por ejemplo, si estamos viendo los eventos estáticos predeterminados de CDMX_EVENTS)
+      if (!fetchedEventsByDate[dateKey] || !Array.isArray(fetchedEventsByDate[dateKey]) || fetchedEventsByDate[dateKey].length === 0) {
+        // Clonar la cartelera estática del día para poder realizar la sustitución local
+        const dateObj = new Date(dateKey + 'T12:00:00');
+        const day = dateObj.getDay();
+        const month = dateObj.getMonth() + 1;
+        fetchedEventsByDate[dateKey] = CDMX_EVENTS.filter(e => eventApplies(e, day, month));
+        fallbackActiveForDate[dateKey] = false; // Marcar como activo dinámico para poder redibujar
+      }
+
+      const key = document.getElementById('geminiKey') ? document.getElementById('geminiKey').value.trim() : '';
+      let alternativeEvent = null;
+
+      // 1. Intentar consultar el endpoint local del servidor en Vercel pasándole los detalles de sustitución
+      try {
+        const headers = {};
+        if (key) headers['x-gemini-key'] = key;
+        const res = await fetch(`/api/get-events?date=${dateKey}&substituteFor=${encodeURIComponent(targetEvent.title)}&location=${encodeURIComponent(targetEvent.location)}`, { headers });
+        if (res.ok) {
+          const result = await res.json();
+          if (result && Array.isArray(result) && result.length > 0) {
+            alternativeEvent = result[0];
+          }
+        }
+      } catch (err) {
+        console.warn('Fallo de conexión en sustitución con Vercel. Intentando fallback local...', err);
+      }
+
+      // 2. Fallback: Llamar directamente a la API de Gemini si el cliente configuró una clave
+      if (!alternativeEvent && key) {
+        try {
+          console.log('Sustituyendo evento con llamada directa a Gemini...');
+          const prompt = `Busca en internet un evento alternativo real y activo que ocurra el día ${dateKey} en la Ciudad de México (CDMX) para sustituir al evento "${targetEvent.title}" (que originalmente se realiza en "${targetEvent.location}"). 
+El nuevo evento sugerido debe ser de la misma categoría o estar ubicado en una zona cercana, y tener un perfil de interés similar.
+Devuelve los resultados obligatoriamente como un arreglo JSON válido con un único objeto de evento (debiendo comenzar con [ y terminar con ]), y absolutamente NADA más (sin explicaciones, sin texto adicional, sin formato markdown). El objeto debe tener los siguientes campos exactos y estructurados:
+- id: un string único corto (ej. 'live_alt_' + número aleatorio o correlativo)
+- time: string formato de 24 horas 'HH:MM' o 'Flexible'
+- endTime: string formato de 24 horas 'HH:MM' o 'Flexible'
+- title: nombre completo del evento alternativo sugerido
+- location: nombre del lugar o recinto real
+- neighborhood: zona o colonia
+- address: dirección física completa en CDMX
+- lat: latitud aproximada (número decimal o null)
+- lng: longitud aproximada (número decimal o null)
+- dateInfo: texto legible de la fecha y hora
+- dateType: 'permanent' | 'seasonal' | 'oneoff' | 'weekly'
+- inst: tipo de institución organizadora (elige entre: 'IPN' | 'UNAM' | 'Premium' | 'Gobierno' | 'Independiente')
+- cost: texto descriptivo del costo
+- costVal: valor numérico del costo mínimo (entero o 0)
+- booking: información breve de venta de boletos o reservación
+- attire: tipo de vestimenta sugerida con emoji
+- net: nivel estimado de networking (elige entre: 'Bajo' | 'Medio' | 'Alto')
+- cat: categoría principal (elige entre: 'Arte' | 'Música' | 'Cine' | 'Bazar' | 'Ciencia' | 'Social' | 'Gastronomía' | 'Naturaleza')
+- petFriendly: boolean (true o false)
+- isWildcard: boolean (true si es flexible en día, false si es de fecha fija)
+- priority: boolean (true si es muy relevante o un solo día, false en caso contrario)
+- link: URL oficial o de boletera (o null)
+- desc: descripción amena y detallada del evento de 2 a 3 oraciones en español.`;
+
+          const response = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                contents: [{ parts: [{ text: prompt }] }],
+                tools: [{ google_search: {} }],
+                generationConfig: {
+                  responseMimeType: "application/json"
+                }
+              })
+            }
+          );
+          if (response.ok) {
+            const data = await response.json();
+            let text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (text) {
+              text = text.trim();
+              if (text.startsWith('```json')) {
+                text = text.substring(7, text.length - 3).trim();
+              } else if (text.startsWith('```')) {
+                text = text.substring(3, text.length - 3).trim();
+              }
+              const result = JSON.parse(text);
+              if (result && Array.isArray(result) && result.length > 0) {
+                alternativeEvent = result[0];
+              }
+            }
+          }
+        } catch (directErr) {
+          console.warn('Error en llamada directa a Gemini para sustitución:', directErr);
+        }
+      }
+
+      // 3. Procesar el evento alternativo encontrado
+      if (alternativeEvent && alternativeEvent.title) {
+        // Buscar el índice del evento original en la lista dinámica de este día
+        const list = fetchedEventsByDate[dateKey];
+        const idx = list.findIndex(e => e.id === id);
+
+        if (idx !== -1) {
+          // Reemplazar el evento viejo por el nuevo
+          list[idx] = alternativeEvent;
+        } else {
+          // Si por alguna razón no estaba en la lista dinámica, agregarlo al final
+          list.push(alternativeEvent);
+        }
+
+        // Registrar el nuevo evento en el diccionario global para poder resolver sus detalles en el futuro
+        knownEvents[alternativeEvent.id] = alternativeEvent;
+        saveKnownEventsLocal();
+        saveFetchedEventsLocal();
+
+        // Guardar el listado actualizado en Firestore para beneficio de otros usuarios si la nube está activa
+        if (window.CloudDB && window.CloudDB.enabled()) {
+          await window.CloudDB.saveCachedEvents(dateKey, list);
+        }
+
+        // 4. Migrar automáticamente los planes y favoritos del usuario al nuevo evento
+        // Actualizar el itinerario si el evento sustituido estaba agregado al plan del día
+        const plan = plansByDate[dateKey] || [];
+        const planIdx = plan.indexOf(id);
+        if (planIdx !== -1) {
+          plan[planIdx] = alternativeEvent.id;
+          savePlansLocal();
+        }
+
+        // Actualizar los favoritos si el evento sustituido estaba marcado como favorito
+        if (favorites.has(id)) {
+          favorites.delete(id);
+          favorites.add(alternativeEvent.id);
+          saveFavsLocal();
+        }
+
+        // Sincronizar cambios de planes y favoritos en la nube
+        syncCloud();
+
+        // Redibujar la interfaz completa
+        renderAll();
+      } else {
+        alert('No se pudo encontrar un evento alternativo para este recinto o fecha. Inténtalo más tarde.');
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = '🔄 Sustituir';
+        }
+      }
     }
 
     function renderFavPanel() {
