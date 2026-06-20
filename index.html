@@ -1536,10 +1536,7 @@ Devuelve los resultados obligatoriamente como un arreglo JSON válido de objetos
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 contents: [{ parts: [{ text: prompt }] }],
-                tools: [{ google_search: {} }],
-                generationConfig: {
-                  responseMimeType: "application/json"
-                }
+                tools: [{ google_search: {} }]
               })
             }
           );
@@ -2063,10 +2060,7 @@ Devuelve los resultados obligatoriamente como un arreglo JSON válido con un ún
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 contents: [{ parts: [{ text: prompt }] }],
-                tools: [{ google_search: {} }],
-                generationConfig: {
-                  responseMimeType: "application/json"
-                }
+                tools: [{ google_search: {} }]
               })
             }
           );

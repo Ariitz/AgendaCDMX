@@ -112,10 +112,7 @@ Devuelve los resultados obligatoriamente como un arreglo JSON válido de objetos
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
-          tools: [{ google_search: {} }], // Activa la herramienta de búsqueda de Google en vivo
-          generationConfig: {
-            responseMimeType: "application/json" // Fuerza a la API a devolver formato JSON plano
-          }
+          tools: [{ google_search: {} }] // Activa la herramienta de búsqueda de Google en vivo
         })
       }
     );
