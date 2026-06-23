@@ -70,7 +70,9 @@ Devuelve los resultados obligatoriamente como un arreglo JSON válido con un ún
 - isWildcard: boolean (true si es flexible en día, false si es fijo)
 - priority: boolean (true si es muy relevante o un solo día, false en caso contrario)
 - link: URL oficial o de boletera (o null)
-- desc: descripción amena y detallada del evento de 2 a 3 oraciones en español.`;
+- desc: descripción amena y detallada del evento de 2 a 3 oraciones en español.
+
+IMPORTANTE: Todos los valores de texto (strings) dentro del JSON deben usar comillas dobles externas. Si dentro del texto necesitas incluir comillas o citar algo, usa comillas simples (') y NUNCA comillas dobles ("), para evitar romper el formato JSON y que sea directamente parseable con JSON.parse.`;
   } else {
     // Prompt de búsqueda estándar: incrementado a 40 eventos y enfocado en grandes recintos de la CDMX
     prompt = `Busca en internet eventos reales, exposiciones de museos, conciertos, obras de teatro, festivales, mercaditos, bazares, meetups o actividades culturales o sociales que ocurran el día ${date} (año, mes, día específico) en la Ciudad de México (CDMX).
@@ -100,7 +102,9 @@ Devuelve los resultados obligatoriamente como un arreglo JSON válido de objetos
 - isWildcard: boolean (true si es flexible en día, false si es fijo)
 - priority: boolean (true si es muy relevante o un solo día, false en caso contrario)
 - link: URL oficial o de boletera (o null)
-- desc: descripción amena y detallada del evento de 2 a 3 oraciones en español.`;
+- desc: descripción amena y detallada del evento de 2 a 3 oraciones en español.
+
+IMPORTANTE: Todos los valores de texto (strings) dentro del JSON deben usar comillas dobles externas. Si dentro del texto necesitas incluir comillas o citar algo, usa comillas simples (') y NUNCA comillas dobles ("), para evitar romper el formato JSON y que sea directamente parseable con JSON.parse.`;
   }
 
   try {
