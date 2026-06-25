@@ -74,11 +74,11 @@ Devuelve los resultados obligatoriamente como un arreglo JSON válido con un ún
 
 IMPORTANTE: Todos los valores de texto (strings) dentro del JSON deben usar comillas dobles externas. Si dentro del texto necesitas incluir comillas o citar algo, usa comillas simples (') y NUNCA comillas dobles ("), para evitar romper el formato JSON y que sea directamente parseable con JSON.parse.`;
   } else {
-    // Prompt de búsqueda estándar: incrementado a 40 eventos y enfocado en grandes recintos de la CDMX
+    // Prompt de búsqueda estándar: limitado a 15-20 eventos y enfocado en grandes recintos de la CDMX
     prompt = `Busca en internet eventos reales, exposiciones de museos, conciertos, obras de teatro, festivales, mercaditos, bazares, meetups o actividades culturales o sociales que ocurran el día ${date} (año, mes, día específico) en la Ciudad de México (CDMX).
 Consulta fuentes populares como "Donde Ir CDMX", "Cartelera de la Ciudad de México", "Ticketmaster México", "Superboletos", "Boletia", "Eventbrite CDMX", etc.
 Intenta prioritariamente incluir eventos en grandes recintos y espacios icónicos de la ciudad como: Campo Marte, Palacio de los Deportes, WTC, Auditorio Nacional, Auditorio BlackBerry, Estadio GNP (antes Foro Sol), Estadio CDMX (Azul), Arena CDMX, explanadas de las alcaldías, ferias del libro, Teatro Telcel, Carpa Santa Fe, Zócalo Capitalino, etc.
-Debes devolver al menos 40 eventos reales y activos que se lleven a cabo exactamente ese día. Si no hay suficientes eventos específicos para ese día exacto, busca eventos y exposiciones permanentes o de temporada que estén abiertos ese día de la semana.
+Debes devolver entre 15 y 20 eventos reales y activos que se lleven a cabo exactamente ese día. Si no hay suficientes eventos específicos para ese día exacto, busca eventos y exposiciones permanentes o de temporada que estén abiertos ese día de la semana.
 Devuelve los resultados obligatoriamente como un arreglo JSON válido de objetos, y absolutamente NADA más (sin explicaciones, sin texto adicional, sin formato markdown de triple comilla invertida, solo el JSON puro que comience con [ y termine con ]). Cada objeto debe representar un evento con los siguientes campos exactos y estructurados:
 - id: un string único corto (ej. 'live_' + número aleatorio o correlativo)
 - time: string formato de 24 horas 'HH:MM' o la palabra 'Flexible' si no tiene horario específico
@@ -122,7 +122,10 @@ IMPORTANTE: Todos los valores de texto (strings) dentro del JSON deben usar comi
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               contents: [{ parts: [{ text: prompt }] }],
-              tools: [{ google_search: {} }] // Activa la herramienta de búsqueda de Google en vivo
+              tools: [{ google_search: {} }], // Activa la herramienta de búsqueda de Google en vivo
+              generationConfig: {
+                responseMimeType: 'application/json'
+              }
             })
           }
         );
@@ -166,21 +169,29 @@ IMPORTANTE: Todos los valores de texto (strings) dentro del JSON deben usar comi
 
     text = text.trim();
     
-    // Limpiar bloques de formato de código markdown si la IA los insertó (ej. ```json ... ```)
-    if (text.startsWith('```json')) {
-      text = text.substring(7, text.length - 3).trim();
-    } else if (text.startsWith('```')) {
-      text = text.substring(3, text.length - 3).trim();
+    // Extraer el bloque de JSON (arreglo o un objeto) de forma segura buscando los corchetes
+    let cleanedText = text;
+    const startIdx = text.indexOf('[');
+    const endIdx = text.lastIndexOf(']');
+    if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
+      cleanedText = text.substring(startIdx, endIdx + 1);
+    } else {
+      // Limpiar bloques de formato de código markdown clásico
+      if (cleanedText.startsWith('```json')) {
+        cleanedText = cleanedText.substring(7, cleanedText.length - 3).trim();
+      } else if (cleanedText.startsWith('```')) {
+        cleanedText = cleanedText.substring(3, cleanedText.length - 3).trim();
+      }
     }
 
     let parsedEvents;
     try {
-      parsedEvents = JSON.parse(text);
+      parsedEvents = JSON.parse(cleanedText);
     } catch (parseError) {
-      console.error('Error al parsear el JSON de la IA:', text);
+      console.error('Error al parsear el JSON de la IA:', cleanedText);
       res.status(500).json({
-        error: 'No se pudo parsear la respuesta como un JSON válido.',
-        raw: text
+        error: `No se pudo parsear la respuesta como un JSON válido: ${parseError.message}`,
+        raw: cleanedText
       });
       return;
     }

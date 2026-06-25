@@ -1561,7 +1561,7 @@
           const prompt = `Busca en internet eventos reales, exposiciones de museos, conciertos, obras de teatro, festivales, mercaditos, bazares, meetups o actividades culturales o sociales que ocurran el día ${dateKey} (año, mes, día específico) en la Ciudad de México (CDMX).
 Consulta fuentes populares como "Donde Ir CDMX", "Cartelera de la Ciudad de México", "Ticketmaster México", "Superboletos", "Boletia", "Eventbrite CDMX", etc.
 Intenta prioritariamente incluir eventos en grandes recintos y espacios icónicos de la ciudad como: Campo Marte, Palacio de los Deportes, WTC, Auditorio Nacional, Auditorio BlackBerry, Estadio GNP (antes Foro Sol), Estadio CDMX (Azul), Arena CDMX, explanadas de las alcaldías, ferias del libro, Teatro Telcel, Carpa Santa Fe, Zócalo Capitalino, etc.
-Debes devolver al menos 40 eventos reales y activos que se lleven a cabo exactamente ese día. Si no hay suficientes eventos específicos para ese día exacto, busca eventos y exposiciones permanentes o de temporada que estén abiertos ese día de la semana.
+Debes devolver entre 15 y 20 eventos reales y activos que se lleven a cabo exactamente ese día. Si no hay suficientes eventos específicos para ese día exacto, busca eventos y exposiciones permanentes o de temporada que estén abiertos ese día de la semana.
 Devuelve los resultados obligatoriamente como un arreglo JSON válido de objetos, y absolutamente NADA más (sin explicaciones, sin texto adicional, sin formato markdown de triple comilla invertida, solo el JSON puro que comience con [ y termine con ]). Cada objeto debe representar un evento con los siguientes campos exactos y estructurados:
 - id: un string único corto (ej. 'live_' + número aleatorio o correlativo)
 - time: string formato de 24 horas 'HH:MM' (ej. '19:00') o la palabra 'Flexible' si no tiene horario específico
@@ -1589,13 +1589,24 @@ Devuelve los resultados obligatoriamente como un arreglo JSON válido de objetos
 
 IMPORTANTE: Todos los valores de texto (strings) dentro del JSON deben usar comillas dobles externas. Si dentro del texto necesitas incluir comillas o citar algo, usa comillas simples (') y NUNCA comillas dobles ("), para evitar romper el formato JSON y que sea directamente parseable con JSON.parse.`;
 
-          const text = await callGeminiApiWithFallback(prompt, key, { googleSearch: true });
+          const text = await callGeminiApiWithFallback(prompt, key, {
+            googleSearch: true,
+            generationConfig: {
+              responseMimeType: 'application/json'
+            }
+          });
           if (text) {
             let cleanedText = text.trim();
-            if (cleanedText.startsWith('```json')) {
-              cleanedText = cleanedText.substring(7, cleanedText.length - 3).trim();
-            } else if (cleanedText.startsWith('```')) {
-              cleanedText = cleanedText.substring(3, cleanedText.length - 3).trim();
+            const startIdx = cleanedText.indexOf('[');
+            const endIdx = cleanedText.lastIndexOf(']');
+            if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
+              cleanedText = cleanedText.substring(startIdx, endIdx + 1);
+            } else {
+              if (cleanedText.startsWith('```json')) {
+                cleanedText = cleanedText.substring(7, cleanedText.length - 3).trim();
+              } else if (cleanedText.startsWith('```')) {
+                cleanedText = cleanedText.substring(3, cleanedText.length - 3).trim();
+              }
             }
             const events = JSON.parse(cleanedText);
             if (events && Array.isArray(events) && events.length > 0) {
@@ -2097,13 +2108,24 @@ Devuelve los resultados obligatoriamente como un arreglo JSON válido con un ún
 
 IMPORTANTE: Todos los valores de texto (strings) dentro del JSON deben usar comillas dobles externas. Si dentro del texto necesitas incluir comillas o citar algo, usa comillas simples (') y NUNCA comillas dobles ("), para evitar romper el formato JSON y que sea directamente parseable con JSON.parse.`;
 
-          const text = await callGeminiApiWithFallback(prompt, key, { googleSearch: true });
+          const text = await callGeminiApiWithFallback(prompt, key, {
+            googleSearch: true,
+            generationConfig: {
+              responseMimeType: 'application/json'
+            }
+          });
           if (text) {
             let cleanedText = text.trim();
-            if (cleanedText.startsWith('```json')) {
-              cleanedText = cleanedText.substring(7, cleanedText.length - 3).trim();
-            } else if (cleanedText.startsWith('```')) {
-              cleanedText = cleanedText.substring(3, cleanedText.length - 3).trim();
+            const startIdx = cleanedText.indexOf('[');
+            const endIdx = cleanedText.lastIndexOf(']');
+            if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
+              cleanedText = cleanedText.substring(startIdx, endIdx + 1);
+            } else {
+              if (cleanedText.startsWith('```json')) {
+                cleanedText = cleanedText.substring(7, cleanedText.length - 3).trim();
+              } else if (cleanedText.startsWith('```')) {
+                cleanedText = cleanedText.substring(3, cleanedText.length - 3).trim();
+              }
             }
             const result = JSON.parse(cleanedText);
             if (result && Array.isArray(result) && result.length > 0) {
