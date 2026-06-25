@@ -1589,12 +1589,7 @@ Devuelve los resultados obligatoriamente como un arreglo JSON válido de objetos
 
 IMPORTANTE: Todos los valores de texto (strings) dentro del JSON deben usar comillas dobles externas. Si dentro del texto necesitas incluir comillas o citar algo, usa comillas simples (') y NUNCA comillas dobles ("), para evitar romper el formato JSON y que sea directamente parseable con JSON.parse.`;
 
-          const text = await callGeminiApiWithFallback(prompt, key, {
-            googleSearch: true,
-            generationConfig: {
-              responseMimeType: 'application/json'
-            }
-          });
+          const text = await callGeminiApiWithFallback(prompt, key, { googleSearch: true });
           if (text) {
             let cleanedText = text.trim();
             const startIdx = cleanedText.indexOf('[');
@@ -1608,6 +1603,8 @@ IMPORTANTE: Todos los valores de texto (strings) dentro del JSON deben usar comi
                 cleanedText = cleanedText.substring(3, cleanedText.length - 3).trim();
               }
             }
+            // Sanitizar comas sobrantes al final de listas u objetos (trailing commas)
+            cleanedText = cleanedText.replace(/,(\s*[\]}])/g, '$1');
             const events = JSON.parse(cleanedText);
             if (events && Array.isArray(events) && events.length > 0) {
               fetchedEventsByDate[dateKey] = events;
@@ -2108,12 +2105,7 @@ Devuelve los resultados obligatoriamente como un arreglo JSON válido con un ún
 
 IMPORTANTE: Todos los valores de texto (strings) dentro del JSON deben usar comillas dobles externas. Si dentro del texto necesitas incluir comillas o citar algo, usa comillas simples (') y NUNCA comillas dobles ("), para evitar romper el formato JSON y que sea directamente parseable con JSON.parse.`;
 
-          const text = await callGeminiApiWithFallback(prompt, key, {
-            googleSearch: true,
-            generationConfig: {
-              responseMimeType: 'application/json'
-            }
-          });
+          const text = await callGeminiApiWithFallback(prompt, key, { googleSearch: true });
           if (text) {
             let cleanedText = text.trim();
             const startIdx = cleanedText.indexOf('[');
@@ -2127,6 +2119,8 @@ IMPORTANTE: Todos los valores de texto (strings) dentro del JSON deben usar comi
                 cleanedText = cleanedText.substring(3, cleanedText.length - 3).trim();
               }
             }
+            // Sanitizar comas sobrantes al final de listas u objetos (trailing commas)
+            cleanedText = cleanedText.replace(/,(\s*[\]}])/g, '$1');
             const result = JSON.parse(cleanedText);
             if (result && Array.isArray(result) && result.length > 0) {
               alternativeEvent = result[0];

@@ -122,10 +122,7 @@ IMPORTANTE: Todos los valores de texto (strings) dentro del JSON deben usar comi
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               contents: [{ parts: [{ text: prompt }] }],
-              tools: [{ google_search: {} }], // Activa la herramienta de búsqueda de Google en vivo
-              generationConfig: {
-                responseMimeType: 'application/json'
-              }
+              tools: [{ google_search: {} }] // Activa la herramienta de búsqueda de Google en vivo
             })
           }
         );
@@ -183,6 +180,9 @@ IMPORTANTE: Todos los valores de texto (strings) dentro del JSON deben usar comi
         cleanedText = cleanedText.substring(3, cleanedText.length - 3).trim();
       }
     }
+
+    // Sanitizar comas sobrantes al final de listas u objetos (trailing commas)
+    cleanedText = cleanedText.replace(/,(\s*[\]}])/g, '$1');
 
     let parsedEvents;
     try {
