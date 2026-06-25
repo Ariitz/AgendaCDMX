@@ -1398,6 +1398,64 @@
     let lastFetchError = '';
     let currentFilter = 'all';
 
+    async function callGeminiApiWithFallback(prompt, apiKey, options = {}) {
+      const models = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+      let lastErr = null;
+
+      const payload = {
+        contents: [{ parts: [{ text: prompt }] }]
+      };
+
+      if (options.googleSearch) {
+        payload.tools = [{ google_search: {} }];
+      }
+
+      if (options.generationConfig) {
+        payload.generationConfig = options.generationConfig;
+      }
+
+      for (const model of models) {
+        try {
+          console.log(`Intentando consultar modelo en frontend: ${model}`);
+          const response = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload)
+            }
+          );
+
+          if (!response.ok) {
+            const errData = await response.json().catch(() => ({}));
+            const errMsg = errData?.error?.message || `HTTP ${response.status} ${response.statusText}`;
+            lastErr = new Error(errMsg);
+            lastErr.status = response.status;
+            lastErr.details = errData;
+
+            console.warn(`Fallo con modelo ${model} en frontend: ${errMsg}`);
+            
+            if (response.status === 400 || response.status === 401 || response.status === 403) {
+              break;
+            }
+            continue;
+          }
+
+          const data = await response.json();
+          const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (!text) {
+            throw new Error(`Respuesta vacía de ${model}`);
+          }
+          return text;
+        } catch (err) {
+          console.warn(`Error de red o de parseo con ${model} en frontend:`, err);
+          lastErr = err;
+        }
+      }
+
+      throw lastErr || new Error('No se pudo establecer conexión con ningún modelo de Gemini.');
+    }
+
     function savePlansLocal() {
       localStorage.setItem('agendaPlans', JSON.stringify(plansByDate));
     }
@@ -1531,47 +1589,29 @@ Devuelve los resultados obligatoriamente como un arreglo JSON válido de objetos
 
 IMPORTANTE: Todos los valores de texto (strings) dentro del JSON deben usar comillas dobles externas. Si dentro del texto necesitas incluir comillas o citar algo, usa comillas simples (') y NUNCA comillas dobles ("), para evitar romper el formato JSON y que sea directamente parseable con JSON.parse.`;
 
-          const response = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,
-            {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                contents: [{ parts: [{ text: prompt }] }],
-                tools: [{ google_search: {} }]
-              })
+          const text = await callGeminiApiWithFallback(prompt, key, { googleSearch: true });
+          if (text) {
+            let cleanedText = text.trim();
+            if (cleanedText.startsWith('```json')) {
+              cleanedText = cleanedText.substring(7, cleanedText.length - 3).trim();
+            } else if (cleanedText.startsWith('```')) {
+              cleanedText = cleanedText.substring(3, cleanedText.length - 3).trim();
             }
-          );
-          if (response.ok) {
-            const data = await response.json();
-            let text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-            if (text) {
-              text = text.trim();
-              if (text.startsWith('```json')) {
-                text = text.substring(7, text.length - 3).trim();
-              } else if (text.startsWith('```')) {
-                text = text.substring(3, text.length - 3).trim();
+            const events = JSON.parse(cleanedText);
+            if (events && Array.isArray(events) && events.length > 0) {
+              fetchedEventsByDate[dateKey] = events;
+              saveFetchedEventsLocal();
+              events.forEach(e => { knownEvents[e.id] = e; });
+              saveKnownEventsLocal();
+              if (window.CloudDB && window.CloudDB.enabled()) {
+                await window.CloudDB.saveCachedEvents(dateKey, events);
               }
-              const events = JSON.parse(text);
-              if (events && Array.isArray(events) && events.length > 0) {
-                fetchedEventsByDate[dateKey] = events;
-                saveFetchedEventsLocal();
-                events.forEach(e => { knownEvents[e.id] = e; });
-                saveKnownEventsLocal();
-                if (window.CloudDB && window.CloudDB.enabled()) {
-                  await window.CloudDB.saveCachedEvents(dateKey, events);
-                }
-                fallbackActiveForDate[dateKey] = false;
-                return events;
-              }
+              fallbackActiveForDate[dateKey] = false;
+              return events;
             }
-          } else {
-            const errData = await response.json().catch(() => ({}));
-            lastFetchError = `Google API error ${response.status}: ${errData?.error?.message || response.statusText}`;
-            console.warn(`Llamada directa a Gemini devolvió status ${response.status}`);
           }
         } catch (directErr) {
-          lastFetchError = `Llamada directa a Gemini falló (posible bloqueo CORS/red): ${directErr.message || directErr}`;
+          lastFetchError = `Llamada directa a Gemini falló: ${directErr.message || directErr}`;
           console.warn('Error en llamada directa a Gemini API:', directErr);
         }
       }
@@ -2057,31 +2097,17 @@ Devuelve los resultados obligatoriamente como un arreglo JSON válido con un ún
 
 IMPORTANTE: Todos los valores de texto (strings) dentro del JSON deben usar comillas dobles externas. Si dentro del texto necesitas incluir comillas o citar algo, usa comillas simples (') y NUNCA comillas dobles ("), para evitar romper el formato JSON y que sea directamente parseable con JSON.parse.`;
 
-          const response = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,
-            {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                contents: [{ parts: [{ text: prompt }] }],
-                tools: [{ google_search: {} }]
-              })
+          const text = await callGeminiApiWithFallback(prompt, key, { googleSearch: true });
+          if (text) {
+            let cleanedText = text.trim();
+            if (cleanedText.startsWith('```json')) {
+              cleanedText = cleanedText.substring(7, cleanedText.length - 3).trim();
+            } else if (cleanedText.startsWith('```')) {
+              cleanedText = cleanedText.substring(3, cleanedText.length - 3).trim();
             }
-          );
-          if (response.ok) {
-            const data = await response.json();
-            let text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-            if (text) {
-              text = text.trim();
-              if (text.startsWith('```json')) {
-                text = text.substring(7, text.length - 3).trim();
-              } else if (text.startsWith('```')) {
-                text = text.substring(3, text.length - 3).trim();
-              }
-              const result = JSON.parse(text);
-              if (result && Array.isArray(result) && result.length > 0) {
-                alternativeEvent = result[0];
-              }
+            const result = JSON.parse(cleanedText);
+            if (result && Array.isArray(result) && result.length > 0) {
+              alternativeEvent = result[0];
             }
           }
         } catch (directErr) {
@@ -2314,32 +2340,19 @@ IMPORTANTE: Todos los valores de texto (strings) dentro del JSON deben usar comi
       el.textContent = '✨ Consultando a Gemini…';
 
       try {
-        const res = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,
-          {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { maxOutputTokens: 300, temperature: 0.7 } })
-          }
-        );
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}));
-          const msg = err?.error?.message || res.statusText;
-          if (msg.includes('API_KEY') || res.status === 400)
-            el.innerHTML = `❌ <strong>API Key inválida o sin permisos.</strong><br><small>Verifica tu key en <a href="https://aistudio.google.com" target="_blank" style="color:#6d28d9;text-decoration:underline">aistudio.google.com</a></small>`;
-          else if (res.status === 429)
-            el.textContent = '⏳ Límite de solicitudes alcanzado. Espera un momento e intenta de nuevo.';
-          else
-            el.textContent = `❌ Error ${res.status}: ${msg}`;
-          return;
-        }
-        const data = await res.json();
-        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        const text = await callGeminiApiWithFallback(prompt, key, {
+          generationConfig: { maxOutputTokens: 300, temperature: 0.7 }
+        });
         el.textContent = text ? ('🤖 ' + text) : '❌ Respuesta vacía de Gemini.';
       } catch (err) {
-        if (err.message.includes('fetch') || err.message.includes('Failed'))
-          el.innerHTML = `❌ <strong>Error CORS / red.</strong><br>
-        La API de Gemini solo funciona desde HTTPS (Vercel). Desde localhost o file:// la bloquea Google por seguridad.<br>
-        <strong>Siguiente paso:</strong> sube la app a Vercel.`;
+        if (err.status === 400 || err.status === 401 || err.status === 403 || (err.message && (err.message.includes('API_KEY') || err.message.includes('key'))))
+          el.innerHTML = `❌ <strong>API Key inválida o sin permisos.</strong><br><small>Verifica tu key en <a href="https://aistudio.google.com" target="_blank" style="color:#6d28d9;text-decoration:underline">aistudio.google.com</a></small>`;
+        else if (err.status === 429)
+          el.textContent = '⏳ Límite de solicitudes alcanzado. Espera un momento e intenta de nuevo.';
+        else if (err.message && (err.message.includes('fetch') || err.message.includes('Failed')))
+          el.innerHTML = `❌ <strong>Error CORS / red o API caída.</strong><br>
+        La API de Gemini puede bloquearse por CORS desde localhost en llamadas directas (debes subir la app a Vercel) o tener problemas de conexión.<br>
+        <strong>Detalle:</strong> ${err.message}`;
         else
           el.textContent = '❌ Error: ' + err.message;
       }

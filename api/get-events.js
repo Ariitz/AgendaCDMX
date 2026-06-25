@@ -108,30 +108,55 @@ IMPORTANTE: Todos los valores de texto (strings) dentro del JSON deben usar comi
   }
 
   try {
-    // Consultar a la API de Gemini usando Google Search Grounding para obtener eventos actualizados de internet
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          tools: [{ google_search: {} }] // Activa la herramienta de búsqueda de Google en vivo
-        })
-      }
-    );
+    const models = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+    let lastError = null;
+    let data = null;
 
-    // Validar errores devueltos por la API de Google
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      res.status(response.status).json({
-        error: errorData?.error?.message || `Error de la API de Gemini: HTTP ${response.status}`,
-        details: errorData
+    for (const model of models) {
+      try {
+        console.log(`Intentando consultar modelo: ${model}`);
+        const response = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: prompt }] }],
+              tools: [{ google_search: {} }] // Activa la herramienta de búsqueda de Google en vivo
+            })
+          }
+        );
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          const errMsg = errorData?.error?.message || `Error de la API de Gemini: HTTP ${response.status}`;
+          lastError = { status: response.status, message: errMsg, details: errorData };
+          
+          console.warn(`Fallo con modelo ${model}. Status: ${response.status}. Mensaje: ${errMsg}`);
+          
+          // Si es un error de cliente (400, 401, 403), no reintentar con otros modelos
+          if (response.status === 400 || response.status === 401 || response.status === 403) {
+            break;
+          }
+          continue; // Intentar con el siguiente modelo
+        }
+
+        data = await response.json();
+        lastError = null;
+        break; // Éxito, salir del bucle
+      } catch (fetchErr) {
+        console.error(`Error de red al consultar ${model}:`, fetchErr);
+        lastError = { status: 500, message: fetchErr.message || String(fetchErr) };
+      }
+    }
+
+    if (lastError) {
+      res.status(lastError.status || 500).json({
+        error: lastError.message,
+        details: lastError.details || null
       });
       return;
     }
-
-    const data = await response.json();
     let text = data.candidates?.[0]?.content?.parts?.[0]?.text;
 
     if (!text) {
