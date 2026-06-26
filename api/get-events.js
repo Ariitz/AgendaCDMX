@@ -108,45 +108,56 @@ IMPORTANTE: Todos los valores de texto (strings) dentro del JSON deben usar comi
   }
 
   try {
-    const models = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+    const models = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-flash-latest', 'gemini-1.5-pro'];
+    const apiVersions = ['v1', 'v1beta'];
     let lastError = null;
     let data = null;
 
     for (const model of models) {
-      try {
-        console.log(`Intentando consultar modelo: ${model}`);
-        const response = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: prompt }] }],
-              tools: [{ google_search: {} }] // Activa la herramienta de búsqueda de Google en vivo
-            })
-          }
-        );
+      for (const version of apiVersions) {
+        try {
+          console.log(`Intentando consultar modelo: ${model} (${version})`);
+          const response = await fetch(
+            `https://generativelanguage.googleapis.com/${version}/models/${model}:generateContent?key=${apiKey}`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                contents: [{ parts: [{ text: prompt }] }],
+                tools: [{ google_search: {} }] // Activa la herramienta de búsqueda de Google en vivo
+              })
+            }
+          );
 
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          const errMsg = errorData?.error?.message || `Error de la API de Gemini: HTTP ${response.status}`;
-          lastError = { status: response.status, message: errMsg, details: errorData };
-          
-          console.warn(`Fallo con modelo ${model}. Status: ${response.status}. Mensaje: ${errMsg}`);
-          
-          // Si es un error de autenticación (401, 403), no reintentar con otros modelos
-          if (response.status === 401 || response.status === 403) {
-            break;
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            const errMsg = errorData?.error?.message || `Error de la API de Gemini: HTTP ${response.status}`;
+            lastError = { status: response.status, message: errMsg, details: errorData };
+            
+            console.warn(`Fallo con modelo ${model} (${version}). Status: ${response.status}. Mensaje: ${errMsg}`);
+            
+            if (response.status === 401 || response.status === 403) {
+              throw lastError;
+            }
+            continue; // Intentar con el siguiente modelo / versión
           }
-          continue; // Intentar con el siguiente modelo
+
+          data = await response.json();
+          lastError = null;
+          break; // Éxito, salir del bucle de versiones
+        } catch (fetchErr) {
+          console.error(`Error de red al consultar ${model} (${version}):`, fetchErr);
+          lastError = { status: fetchErr.status || 500, message: fetchErr.message || String(fetchErr), details: fetchErr.details || null };
+          if (fetchErr.status === 401 || fetchErr.status === 403) {
+            break; // Romper bucle de versiones
+          }
         }
-
-        data = await response.json();
-        lastError = null;
-        break; // Éxito, salir del bucle
-      } catch (fetchErr) {
-        console.error(`Error de red al consultar ${model}:`, fetchErr);
-        lastError = { status: 500, message: fetchErr.message || String(fetchErr) };
+      }
+      if (data) {
+        break; // Éxito, salir del bucle de modelos
+      }
+      if (lastError && (lastError.status === 401 || lastError.status === 403)) {
+        break; // Detener reintentos si es problema de credenciales
       }
     }
 
