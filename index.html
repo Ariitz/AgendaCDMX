@@ -1382,7 +1382,7 @@
     let lastFetchError = '';
     let currentFilter = 'all';
     async function callGeminiApiWithFallback(prompt, apiKey, options = {}) {
-      const models = ['gemini-2.5-flash', 'gemini-2.0-flash'];
+      const models = ['gemini-1.5-flash', 'gemini-1.5-flash-latest', 'gemini-2.0-flash'];
       let lastErr = null;
 
       const payload = {
