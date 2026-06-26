@@ -1435,7 +1435,7 @@
 
             console.warn(`Fallo con modelo ${model} en frontend: ${errMsg}`);
             
-            if (response.status === 400 || response.status === 401 || response.status === 403) {
+            if (response.status === 401 || response.status === 403) {
               break;
             }
             continue;
@@ -2357,7 +2357,7 @@ IMPORTANTE: Todos los valores de texto (strings) dentro del JSON deben usar comi
 
       try {
         const text = await callGeminiApiWithFallback(prompt, key, {
-          generationConfig: { maxOutputTokens: 300, temperature: 0.7 }
+          generationConfig: { maxOutputTokens: 1000, temperature: 0.7 }
         });
         el.textContent = text ? ('🤖 ' + text) : '❌ Respuesta vacía de Gemini.';
       } catch (err) {
