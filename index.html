@@ -1418,7 +1418,7 @@
 
             console.warn(`Fallo con modelo ${model} en frontend: ${errMsg}`);
             
-            if (response.status === 401 || response.status === 403) {
+            if (response.status === 400 || response.status === 401 || response.status === 403) {
               break;
             }
             continue;
@@ -2313,6 +2313,52 @@ IMPORTANTE: Todos los valores de texto (strings) dentro del JSON deben usar comi
       setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 1000);
     }
 
+<<<<<<< HEAD
+=======
+    // ══════════════════════════════════════════════════════
+    // GEMINI
+    // ══════════════════════════════════════════════════════
+    async function askGemini() {
+      const key = document.getElementById('geminiKey').value.trim();
+      const el = document.getElementById('geminiResponse');
+      el.classList.remove('hidden');
+
+      if (!key) {
+        el.innerHTML = `⚠️ Ingresa tu API Key de Gemini en el encabezado.<br>
+      <small>La IA funciona una vez que subas la app a <strong>Vercel</strong> (dominio HTTPS).<br>
+      Obtén tu key gratis en <a href="https://aistudio.google.com" target="_blank" style="color:#6d28d9;text-decoration:underline">aistudio.google.com</a></small>`;
+        return;
+      }
+
+      const plan = getPlan().map(id => CDMX_EVENTS.find(e => e.id === id) || knownEvents[id]).filter(Boolean);
+      const dp = getDateKey();
+      const summary = plan.length > 0
+        ? plan.map(e => `${e.time !== 'Flexible' ? e.time : 'flexible'} — ${e.title} (${e.neighborhood})`).join('; ')
+        : 'Sin eventos en el plan todavía';
+
+      const prompt = `Eres un guía cultural experto de Ciudad de México con especial cariño por el IPN. El usuario tiene planeado para el ${dp}: ${summary}. Da una recomendación breve (máx 3 oraciones, tono amigable y entusiasta): complementos gastronómicos o culturales cercanos, orden sugerido de visita, o qué no perderse. Sé específico con nombres reales de lugares en CDMX.`;
+
+      el.textContent = '✨ Consultando a Gemini…';
+
+      try {
+        const text = await callGeminiApiWithFallback(prompt, key, {
+          generationConfig: { maxOutputTokens: 300, temperature: 0.7 }
+        });
+        el.textContent = text ? ('🤖 ' + text) : '❌ Respuesta vacía de Gemini.';
+      } catch (err) {
+        if (err.status === 400 || err.status === 401 || err.status === 403 || (err.message && (err.message.includes('API_KEY') || err.message.includes('key'))))
+          el.innerHTML = `❌ <strong>API Key inválida o sin permisos.</strong><br><small>Verifica tu key en <a href="https://aistudio.google.com" target="_blank" style="color:#6d28d9;text-decoration:underline">aistudio.google.com</a></small>`;
+        else if (err.status === 429)
+          el.textContent = '⏳ Límite de solicitudes alcanzado. Espera un momento e intenta de nuevo.';
+        else if (err.message && (err.message.includes('fetch') || err.message.includes('Failed')))
+          el.innerHTML = `❌ <strong>Error CORS / red o API caída.</strong><br>
+        La API de Gemini puede bloquearse por CORS desde localhost en llamadas directas (debes subir la app a Vercel) o tener problemas de conexión.<br>
+        <strong>Detalle:</strong> ${err.message}`;
+        else
+          el.textContent = '❌ Error: ' + err.message;
+      }
+    }
+>>>>>>> parent of 1ded04b (fix a sugerencias ia)
 
     // ══════════════════════════════════════════════════════
     // CLOUD MODAL HELPERS

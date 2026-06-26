@@ -134,8 +134,8 @@ IMPORTANTE: Todos los valores de texto (strings) dentro del JSON deben usar comi
           
           console.warn(`Fallo con modelo ${model}. Status: ${response.status}. Mensaje: ${errMsg}`);
           
-          // Si es un error de autenticación (401, 403), no reintentar con otros modelos
-          if (response.status === 401 || response.status === 403) {
+          // Si es un error de cliente (400, 401, 403), no reintentar con otros modelos
+          if (response.status === 400 || response.status === 401 || response.status === 403) {
             break;
           }
           continue; // Intentar con el siguiente modelo
