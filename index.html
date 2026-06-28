@@ -555,16 +555,7 @@
               class="rounded-xl px-3 py-1.5 text-sm font-medium text-gray-800 bg-white/95 border-0 shadow-sm"
               style="min-width:155px;">
           </div>
-          <div>
-            <label class="text-xs opacity-60 block mb-0.5">
-              🔑 Gemini API Key
-              <button onclick="showModal('apiModal')" class="underline opacity-80 hover:opacity-100 ml-1">¿Qué
-                es?</button>
-            </label>
-            <input type="password" id="geminiKey" placeholder="AIza… (funciona tras subir a Vercel)"
-              class="rounded-xl px-3 py-1.5 text-sm text-gray-800 bg-white/95 border-0 shadow-sm"
-              style="min-width:200px;">
-          </div>
+
         </div>
       </div>
     </div>
@@ -669,33 +660,11 @@
               </div>
               <div id="planItems"></div>
               <div id="planActions" class="hidden mt-3 space-y-2">
-                <button onclick="exportIcal()"
-                  class="w-full text-white rounded-2xl py-2.5 font-semibold text-sm hover:opacity-90 flex items-center justify-center gap-2"
-                  style="background:var(--guinda);">
-                  📥 Descargar plan (.ics)
-                </button>
                 <button onclick="clearPlan()"
                   class="w-full bg-gray-100 text-gray-600 rounded-2xl py-2 font-medium text-sm hover:bg-gray-200">
                   🗑️ Limpiar plan
                 </button>
               </div>
-            </div>
-          </div>
-
-          <!-- Gemini -->
-          <div class="mt-4 bg-white rounded-3xl shadow-sm border border-purple-100 overflow-hidden">
-            <div class="p-4 bg-gradient-to-r from-purple-50 to-indigo-50 border-b border-purple-100">
-              <h3 class="font-bold text-gray-800 text-sm">🤖 Sugerencia IA (Gemini)</h3>
-              <p class="text-xs text-gray-500 mt-0.5">Disponible tras subir la app a Vercel</p>
-            </div>
-            <div class="p-4">
-              <button onclick="askGemini()"
-                class="w-full text-white rounded-xl py-2.5 text-sm font-semibold hover:opacity-90"
-                style="background:linear-gradient(135deg,#7c3aed,#4f46e5);">
-                ✨ Sugerir con IA
-              </button>
-              <div id="geminiResponse"
-                class="mt-3 text-xs text-gray-700 leading-relaxed hidden bg-purple-50 rounded-xl p-3"></div>
             </div>
           </div>
 
@@ -794,41 +763,7 @@
     </div>
   </div>
 
-  <!-- ══ MODAL: API KEY GEMINI ══════════════════ -->
-  <div id="apiModal" class="modal-overlay hidden">
-    <div class="bg-white rounded-3xl max-w-lg w-full max-h-screen overflow-y-auto p-6">
-      <div class="flex items-center justify-between mb-4">
-        <h3 class="font-bold text-xl text-gray-800 serif">🔑 API Key de Gemini</h3>
-        <button onclick="hideModal('apiModal')"
-          class="text-gray-400 hover:text-gray-600 text-3xl leading-none">&times;</button>
-      </div>
-      <div class="space-y-4 text-sm">
-        <div class="bg-amber-50 rounded-2xl p-4 border border-amber-200">
-          <p class="font-bold text-amber-800 mb-1">⚠️ Importante: requiere Vercel</p>
-          <p class="text-amber-700 text-xs leading-relaxed">La API de Gemini bloquea solicitudes desde archivos locales
-            y localhost por una política de seguridad llamada CORS. <strong>Funcionará automáticamente una vez que subas
-              la app a Vercel</strong> (siguiente paso del proyecto).</p>
-        </div>
-        <div class="bg-blue-50 rounded-2xl p-4">
-          <p class="font-semibold text-blue-800 mb-2">📌 Obtener API Key gratis:</p>
-          <ol class="space-y-1.5 list-decimal list-inside text-xs text-blue-700">
-            <li>Ve a <a href="https://aistudio.google.com" target="_blank"
-                class="underline font-medium">aistudio.google.com</a></li>
-            <li>Inicia sesión con tu cuenta Google</li>
-            <li>Clic en <strong>Get API key → Create API key</strong></li>
-            <li>Copia la clave (empieza con AIza…)</li>
-            <li>Pégala en el campo del encabezado</li>
-          </ol>
-        </div>
-        <div class="bg-green-50 rounded-xl p-3 text-xs text-green-700">
-          <p class="font-semibold text-green-800 mb-1">✅ Plan gratuito:</p>
-          <p>15 solicitudes/minuto · 1,500/día · sin costo</p>
-        </div>
-      </div>
-      <button onclick="hideModal('apiModal')" class="mt-4 w-full text-white rounded-2xl py-3 font-semibold"
-        style="background:var(--guinda);">Entendido</button>
-    </div>
-  </div>
+
 
   <script>
     // ══════════════════════════════════════════════════════
@@ -1559,7 +1494,7 @@
         try {
           console.log('Intentando llamada directa a Gemini API...');
           const prompt = `Busca en internet eventos reales, exposiciones de museos, conciertos, obras de teatro, festivales, mercaditos, bazares, meetups o actividades culturales o sociales que ocurran el día ${dateKey} (año, mes, día específico) en la Ciudad de México (CDMX).
-Consulta fuentes populares como "Donde Ir CDMX", "Cartelera de la Ciudad de México", "Ticketmaster México", "Superboletos", "Boletia", "Eventbrite CDMX", etc.
+Consulta fuentes populares como "Donde Ir CDMX", "Cartelera de la Ciudad de México", "Ticketmaster México", "Superboletos", "Boletia", "Eventbrite CDMX", "Fever", "Eventos Politécnico" etc.
 Intenta prioritariamente incluir eventos en grandes recintos y espacios icónicos de la ciudad como: Campo Marte, Palacio de los Deportes, WTC, Auditorio Nacional, Auditorio BlackBerry, Estadio GNP (antes Foro Sol), Estadio CDMX (Azul), Arena CDMX, explanadas de las alcaldías, ferias del libro, Teatro Telcel, Carpa Santa Fe, Zócalo Capitalino, etc.
 Debes devolver entre 15 y 20 eventos reales y activos que se lleven a cabo exactamente ese día. Si no hay suficientes eventos específicos para ese día exacto, busca eventos y exposiciones permanentes o de temporada que estén abiertos ese día de la semana.
 Devuelve los resultados obligatoriamente como un arreglo JSON válido de objetos, y absolutamente NADA más (sin explicaciones, sin texto adicional, sin formato markdown de triple comilla invertida, solo el JSON puro que comience con [ y termine con ]). Cada objeto debe representar un evento con los siguientes campos exactos y estructurados:
@@ -1625,7 +1560,7 @@ IMPORTANTE: Todos los valores de texto (strings) dentro del JSON deben usar comi
       }
 
       if (!key && !lastFetchError) {
-        lastFetchError = 'Falta configurar la API Key de Gemini en el panel superior derecho (header) para la búsqueda local.';
+        lastFetchError = 'Sube la app a Vercel para buscar eventos en tiempo real en internet.';
       }
 
       // 5. Fallback absoluto: Retornar null para indicar que debemos usar los estáticos CDMX_EVENTS
@@ -1830,7 +1765,7 @@ IMPORTANTE: Todos los valores de texto (strings) dentro del JSON deben usar comi
       if (fallbackActiveForDate[dateKey]) {
         const alertDiv = document.createElement('div');
         alertDiv.className = "mb-3 rounded-2xl p-3 text-xs bg-amber-50 border border-amber-200 text-amber-800 leading-normal";
-        alertDiv.innerHTML = `⚠️ <strong>Mostrando eventos de respaldo estáticos.</strong> Configura tu 🔑 Gemini API Key en el header o sube la app a Vercel para buscar eventos en tiempo real en internet.<br><span class="text-red-700 font-semibold block mt-1.5">Detalle del error: ${lastFetchError || 'Ninguno especificado'}</span>`;
+        alertDiv.innerHTML = `⚠️ <strong>Mostrando eventos de respaldo estáticos.</strong> Sube la app a Vercel para buscar eventos en tiempo real en internet.<br><span class="text-red-700 font-semibold block mt-1.5">Detalle del error: ${lastFetchError || 'Ninguno especificado'}</span>`;
         cont.appendChild(alertDiv);
       }
 
@@ -2334,7 +2269,8 @@ IMPORTANTE: Todos los valores de texto (strings) dentro del JSON deben usar comi
     // GEMINI
     // ══════════════════════════════════════════════════════
     async function askGemini() {
-      const key = document.getElementById('geminiKey').value.trim();
+      const keyInput = document.getElementById('geminiKey');
+      const key = keyInput ? keyInput.value.trim() : '';
       const el = document.getElementById('geminiResponse');
       el.classList.remove('hidden');
 
