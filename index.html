@@ -1,1179 +1,1906 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Agenda Cultural CDMX · Politécnico</title>
-<script src="https://cdn.tailwindcss.com"></script>
-<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agenda Cultural CDMX · Politécnico</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link
+    href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600;700&display=swap"
+    rel="stylesheet">
 
-<!-- Firebase SDK (base de datos en la nube) -->
-<script type="module">
-  import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-  import { getFirestore, doc, setDoc, getDoc, onSnapshot, collection, deleteDoc }
-    from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+  <!-- Firebase SDK (base de datos en la nube) -->
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+    import { getFirestore, doc, setDoc, getDoc, onSnapshot, collection, deleteDoc }
+      from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
-  // ══════════════════════════════════════════════════
-  // CONFIGURACIÓN FIREBASE
-  // Crea tu propio proyecto gratis en https://console.firebase.google.com
-  // Instrucciones en el modal de ayuda de la app (botón ☁️ en el header)
-  // ══════════════════════════════════════════════════
-  const FIREBASE_CONFIG = {
-    apiKey:            "TU_API_KEY_AQUI",
-    authDomain:        "TU_PROYECTO.firebaseapp.com",
-    projectId:         "TU_PROYECTO_ID",
-    storageBucket:     "TU_PROYECTO.appspot.com",
-    messagingSenderId: "TU_MESSAGING_ID",
-    appId:             "TU_APP_ID"
-  };
+    // ══════════════════════════════════════════════════
+    // CONFIGURACIÓN FIREBASE
+    // Crea tu propio proyecto gratis en https://console.firebase.google.com
+    // Instrucciones en el modal de ayuda de la app (botón ☁️ en el header)
+    // ══════════════════════════════════════════════════
+    const firebaseConfig = {
+      apiKey: "AIzaSyB1bu6Duw0-klYf7Bpyo5lEB-72xJMMuic",
+      authDomain: "agenda-cdmx.firebaseapp.com",
+      projectId: "agenda-cdmx",
+      storageBucket: "agenda-cdmx.firebasestorage.app",
+      messagingSenderId: "28340886292",
+      appId: "1:28340886292:web:fb685ba5e7b09755b2c001",
+      measurementId: "G-ZVWVHTNG9D"
+    };
 
-  // ID de usuario — se genera una vez y se guarda en localStorage
-  // Así la misma persona puede acceder desde cualquier dispositivo
-  // si pega el mismo USER_ID en los ajustes
-  function getUserId() {
-    let uid = localStorage.getItem('agendaUserId');
-    if (!uid) {
-      uid = 'user_' + Math.random().toString(36).slice(2,11);
-      localStorage.setItem('agendaUserId', uid);
+    // ID de usuario — se genera una vez y se guarda en localStorage
+    // Así la misma persona puede acceder desde cualquier dispositivo
+    // si pega el mismo USER_ID en los ajustes
+    function getUserId() {
+      let uid = localStorage.getItem('agendaUserId');
+      if (!uid) {
+        uid = 'user_' + Math.random().toString(36).slice(2, 11);
+        localStorage.setItem('agendaUserId', uid);
+      }
+      return uid;
     }
-    return uid;
-  }
 
-  let db = null;
-  let USER_ID = getUserId();
-  let cloudEnabled = false;
+    let db = null;
+    let USER_ID = getUserId();
+    let cloudEnabled = false;
 
-  // Inicializar Firebase solo si la config fue personalizada
-  if (FIREBASE_CONFIG.apiKey !== "TU_API_KEY_AQUI") {
-    try {
-      const app = initializeApp(FIREBASE_CONFIG);
-      db = getFirestore(app);
-      cloudEnabled = true;
-      console.log('☁️ Firebase conectado como:', USER_ID);
-    } catch(e) {
-      console.warn('Firebase no pudo inicializarse:', e.message);
+    // Inicializar Firebase solo si la config fue personalizada
+    if (firebaseConfig.apiKey !== "TU_API_KEY_AQUI") {
+      try {
+        const app = initializeApp(firebaseConfig);
+        db = getFirestore(app);
+        cloudEnabled = true;
+        console.log('☁️ Firebase conectado como:', USER_ID);
+      } catch (e) {
+        console.warn('Firebase no pudo inicializarse:', e.message);
+      }
     }
-  }
 
-  // ── API pública que usará el resto del script ──────
-  window.CloudDB = {
-    enabled: () => cloudEnabled,
-    userId:  () => USER_ID,
+    // ── API pública que usará el resto del script ──────
+    window.CloudDB = {
+      enabled: () => cloudEnabled,
+      userId: () => USER_ID,
 
-    setUserId(newId) {
-      USER_ID = newId;
-      localStorage.setItem('agendaUserId', newId);
-    },
+      setUserId(newId) {
+        USER_ID = newId;
+        localStorage.setItem('agendaUserId', newId);
+      },
 
-    // Guardar plan de un día
-    async savePlan(dateKey, eventIds) {
-      if (!cloudEnabled) return;
-      try {
-        await setDoc(doc(db, 'users', USER_ID, 'plans', dateKey), { eventIds, updatedAt: Date.now() });
-      } catch(e) { console.warn('savePlan error:', e); }
-    },
+      // Guardar plan de un día
+      async savePlan(dateKey, eventIds) {
+        if (!cloudEnabled) return;
+        try {
+          await setDoc(doc(db, 'users', USER_ID, 'plans', dateKey), { eventIds, updatedAt: Date.now() });
+        } catch (e) { console.warn('savePlan error:', e); }
+      },
 
-    // Cargar todos los planes
-    async loadAllPlans() {
-      if (!cloudEnabled) return null;
-      try {
-        const snap = await getDoc(doc(db, 'users', USER_ID, 'meta', 'plans'));
-        return snap.exists() ? snap.data().plans : {};
-      } catch(e) { return null; }
-    },
+      // Cargar todos los planes
+      async loadAllPlans() {
+        if (!cloudEnabled) return null;
+        try {
+          const snap = await getDoc(doc(db, 'users', USER_ID, 'meta', 'plans'));
+          return snap.exists() ? snap.data().plans : {};
+        } catch (e) { return null; }
+      },
 
-    // Guardar favoritos
-    async saveFavorites(favArray) {
-      if (!cloudEnabled) return;
-      try {
-        await setDoc(doc(db, 'users', USER_ID, 'meta', 'favorites'), { ids: favArray, updatedAt: Date.now() });
-      } catch(e) { console.warn('saveFavorites error:', e); }
-    },
+      // Guardar favoritos
+      async saveFavorites(favArray) {
+        if (!cloudEnabled) return;
+        try {
+          await setDoc(doc(db, 'users', USER_ID, 'meta', 'favorites'), { ids: favArray, updatedAt: Date.now() });
+        } catch (e) { console.warn('saveFavorites error:', e); }
+      },
 
-    // Cargar favoritos
-    async loadFavorites() {
-      if (!cloudEnabled) return null;
-      try {
-        const snap = await getDoc(doc(db, 'users', USER_ID, 'meta', 'favorites'));
-        return snap.exists() ? snap.data().ids : [];
-      } catch(e) { return null; }
-    },
+      // Cargar favoritos
+      async loadFavorites() {
+        if (!cloudEnabled) return null;
+        try {
+          const snap = await getDoc(doc(db, 'users', USER_ID, 'meta', 'favorites'));
+          return snap.exists() ? snap.data().ids : [];
+        } catch (e) { return null; }
+      },
 
-    // Guardar plan + favoritos juntos (llamada unificada)
-    async syncAll(plansByDate, favoritesArray) {
-      if (!cloudEnabled) return;
-      try {
-        await setDoc(doc(db, 'users', USER_ID, 'meta', 'allData'), {
-          plans: plansByDate,
-          favorites: favoritesArray,
-          updatedAt: Date.now()
-        });
-      } catch(e) { console.warn('syncAll error:', e); }
-    },
+      // Guardar plan + favoritos juntos (llamada unificada)
+      async syncAll(plansByDate, favoritesArray) {
+        if (!cloudEnabled) return;
+        try {
+          await setDoc(doc(db, 'users', USER_ID, 'meta', 'allData'), {
+            plans: plansByDate,
+            favorites: favoritesArray,
+            updatedAt: Date.now()
+          });
+        } catch (e) { console.warn('syncAll error:', e); }
+      },
 
-    // Cargar todo de una vez
-    async loadAll() {
-      if (!cloudEnabled) return null;
-      try {
-        const snap = await getDoc(doc(db, 'users', USER_ID, 'meta', 'allData'));
-        return snap.exists() ? snap.data() : null;
-      } catch(e) { return null; }
+      // Cargar todo de una vez
+      async loadAll() {
+        if (!cloudEnabled) return null;
+        try {
+          const snap = await getDoc(doc(db, 'users', USER_ID, 'meta', 'allData'));
+          return snap.exists() ? snap.data() : null;
+        } catch (e) { return null; }
+      },
+
+      // Guardar caché de eventos de una fecha en la nube
+      async saveCachedEvents(dateKey, events) {
+        if (!cloudEnabled) return;
+        try {
+          await setDoc(doc(db, 'cached_events', dateKey), { events, updatedAt: Date.now() });
+        } catch (e) { console.warn('saveCachedEvents error:', e); }
+      },
+
+      // Cargar caché de eventos de una fecha desde la nube
+      async loadCachedEvents(dateKey) {
+        if (!cloudEnabled) return null;
+        try {
+          const snap = await getDoc(doc(db, 'cached_events', dateKey));
+          return snap.exists() ? snap.data().events : null;
+        } catch (e) { return null; }
+      }
+    };
+  </script>
+
+  <style>
+    :root {
+      --guinda: #6e0d3c;
+      --guinda-light: #8a1049;
+      --unam-blue: #1c3d6c;
+      --fever-purple: #4c1d95;
+      --free-green: #065f46;
+      --wildcard-amber: #92400e;
+      --header-h: 130px;
     }
-  };
-</script>
 
-<style>
-  :root {
-    --guinda:#6e0d3c; --guinda-light:#8a1049;
-    --unam-blue:#1c3d6c; --fever-purple:#4c1d95;
-    --free-green:#065f46; --wildcard-amber:#92400e;
-    --header-h:130px;
-  }
-  *{font-family:'DM Sans',sans-serif;box-sizing:border-box;}
-  h1,h2,.serif{font-family:'DM Serif Display',serif;}
-  body{background:#f7f3f0;min-height:100vh;}
-  #stickyHeader{position:fixed;top:0;left:0;right:0;z-index:40;}
-  .main-content{padding-top:var(--header-h);}
-  .text-guinda{color:var(--guinda);}
+    * {
+      font-family: 'DM Sans', sans-serif;
+      box-sizing: border-box;
+    }
 
-  .card-ipn{border-left:4px solid var(--guinda);background:linear-gradient(135deg,#fff,#fdf5f8);}
-  .card-unam{border-left:4px solid var(--unam-blue);background:linear-gradient(135deg,#fff,#f0f4fa);}
-  .card-premium{border-left:4px solid var(--fever-purple);background:linear-gradient(135deg,#fff,#f5f0ff);}
-  .card-gobierno{border-left:4px solid #374151;background:linear-gradient(135deg,#fff,#f9fafb);}
-  .card-independiente{border-left:4px solid #d97706;background:linear-gradient(135deg,#fff,#fffbeb);}
-  .card-festival{border-left:4px solid #7c3aed;background:linear-gradient(135deg,#fff,#faf5ff);}
-  .card-foraneo{border-left:4px solid #0891b2;background:linear-gradient(135deg,#fff,#ecfeff);}
+    h1,
+    h2,
+    .serif {
+      font-family: 'DM Serif Display', serif;
+    }
 
-  .badge{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;line-height:1.6;}
-  .badge-ipn{background:var(--guinda);color:#fff;}
-  .badge-unam{background:var(--unam-blue);color:#fff;}
-  .badge-premium{background:var(--fever-purple);color:#fff;}
-  .badge-gobierno{background:#374151;color:#fff;}
-  .badge-independiente{background:#d97706;color:#fff;}
-  .badge-festival{background:#7c3aed;color:#fff;}
-  .badge-foraneo{background:#0891b2;color:#fff;}
-  .badge-free{background:#d1fae5;color:var(--free-green);border:1px solid #6ee7b7;}
-  .badge-wildcard{background:#fef3c7;color:var(--wildcard-amber);border:1px solid #fcd34d;}
-  .badge-pet{background:#ffe4e6;color:#be123c;border:1px solid #fca5a5;}
-  .badge-priority{background:#fef2f2;color:#dc2626;border:1px solid #fca5a5;}
-  .badge-dates{background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe;font-size:10px;}
+    body {
+      background: #f7f3f0;
+      min-height: 100vh;
+    }
 
-  .chip{cursor:pointer;padding:5px 13px;border-radius:999px;font-size:12px;font-weight:500;border:1.5px solid #e5e7eb;background:#fff;color:#374151;transition:all .15s;white-space:nowrap;}
-  .chip:hover{border-color:var(--guinda);color:var(--guinda);}
-  .chip.active{background:var(--guinda);color:#fff;border-color:var(--guinda);}
+    #stickyHeader {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 40;
+    }
 
-  .btn-sm{padding:5px 10px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;border:none;display:inline-flex;align-items:center;gap:4px;text-decoration:none;}
-  .btn-map{background:#eff6ff;color:#1d4ed8;}.btn-map:hover{background:#dbeafe;}
-  .btn-waze{background:#fff7ed;color:#c2410c;}.btn-waze:hover{background:#ffedd5;}
-  .btn-cal{background:#f0fdf4;color:#15803d;}.btn-cal:hover{background:#dcfce7;}
-  .btn-add{background:var(--guinda);color:#fff;}.btn-add:hover:not(:disabled){background:var(--guinda-light);}
-  .btn-add:disabled{background:#6b7280;cursor:default;}
-  .btn-fav{background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;}
-  .btn-fav.active{background:#c2410c;color:#fff;border-color:#c2410c;}
-  .btn-cloud{background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;padding:4px 10px;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;}
+    .main-content {
+      padding-top: calc(var(--header-h) + 1.5rem) !important;
+    }
 
-  .plan-panel{position:sticky;top:calc(var(--header-h) + 8px);max-height:calc(100vh - var(--header-h) - 24px);overflow-y:auto;}
-  .plan-item{background:#fff;border-radius:12px;padding:10px 12px;margin-bottom:8px;border:1px solid #f0e8ec;}
+    .text-guinda {
+      color: var(--guinda);
+    }
 
-  ::-webkit-scrollbar{width:5px;}
-  ::-webkit-scrollbar-thumb{background:#d1d5db;border-radius:3px;}
+    .card-ipn {
+      border-left: 4px solid var(--guinda);
+      background: linear-gradient(135deg, #fff, #fdf5f8);
+    }
 
-  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:60;display:flex;align-items:center;justify-content:center;padding:16px;}
+    .card-unam {
+      border-left: 4px solid var(--unam-blue);
+      background: linear-gradient(135deg, #fff, #f0f4fa);
+    }
 
-  /* Pill de fechas en card */
-  .date-pill{display:inline-flex;align-items:center;gap:4px;background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe;border-radius:6px;padding:3px 8px;font-size:11px;font-weight:600;margin-bottom:8px;}
-  .date-pill.seasonal{background:#fef9c3;color:#854d0e;border-color:#fde047;}
-  .date-pill.permanent{background:#f0fdf4;color:#166534;border-color:#86efac;}
-  .date-pill.oneoff{background:#fef2f2;color:#dc2626;border-color:#fca5a5;}
+    .card-premium {
+      border-left: 4px solid var(--fever-purple);
+      background: linear-gradient(135deg, #fff, #f5f0ff);
+    }
 
-  .net-high{color:#059669;font-weight:600;}
-  .net-med{color:#d97706;font-weight:600;}
-  .net-low{color:#6b7280;}
+    .card-gobierno {
+      border-left: 4px solid #374151;
+      background: linear-gradient(135deg, #fff, #f9fafb);
+    }
 
-  .cloud-dot{width:8px;height:8px;border-radius:50%;display:inline-block;}
-  .cloud-dot.on{background:#22c55e;}
-  .cloud-dot.off{background:#9ca3af;}
+    .card-independiente {
+      border-left: 4px solid #d97706;
+      background: linear-gradient(135deg, #fff, #fffbeb);
+    }
 
-  .card-enter{animation:slideIn .18s ease both;}
-  @keyframes slideIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+    .card-festival {
+      border-left: 4px solid #7c3aed;
+      background: linear-gradient(135deg, #fff, #faf5ff);
+    }
 
-  @media(max-width:768px){
-    .plan-panel{position:static;max-height:none;}
-    :root{--header-h:165px;}
-  }
-</style>
+    .card-foraneo {
+      border-left: 4px solid #0891b2;
+      background: linear-gradient(135deg, #fff, #ecfeff);
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+      line-height: 1.6;
+    }
+
+    .badge-ipn {
+      background: var(--guinda);
+      color: #fff;
+    }
+
+    .badge-unam {
+      background: var(--unam-blue);
+      color: #fff;
+    }
+
+    .badge-premium {
+      background: var(--fever-purple);
+      color: #fff;
+    }
+
+    .badge-gobierno {
+      background: #374151;
+      color: #fff;
+    }
+
+    .badge-independiente {
+      background: #d97706;
+      color: #fff;
+    }
+
+    .badge-festival {
+      background: #7c3aed;
+      color: #fff;
+    }
+
+    .badge-foraneo {
+      background: #0891b2;
+      color: #fff;
+    }
+
+    .badge-free {
+      background: #d1fae5;
+      color: var(--free-green);
+      border: 1px solid #6ee7b7;
+    }
+
+    .badge-wildcard {
+      background: #fef3c7;
+      color: var(--wildcard-amber);
+      border: 1px solid #fcd34d;
+    }
+
+    .badge-pet {
+      background: #ffe4e6;
+      color: #be123c;
+      border: 1px solid #fca5a5;
+    }
+
+    .badge-priority {
+      background: #fef2f2;
+      color: #dc2626;
+      border: 1px solid #fca5a5;
+    }
+
+    .badge-dates {
+      background: #eff6ff;
+      color: #1e40af;
+      border: 1px solid #bfdbfe;
+      font-size: 10px;
+    }
+
+    .chip {
+      cursor: pointer;
+      padding: 5px 13px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 500;
+      border: 1.5px solid #e5e7eb;
+      background: #fff;
+      color: #374151;
+      transition: all .15s;
+      white-space: nowrap;
+    }
+
+    .chip:hover {
+      border-color: var(--guinda);
+      color: var(--guinda);
+    }
+
+    .chip.active {
+      background: var(--guinda);
+      color: #fff;
+      border-color: var(--guinda);
+    }
+
+    .btn-sm {
+      padding: 5px 10px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .15s;
+      border: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      text-decoration: none;
+    }
+
+    .btn-map {
+      background: #eff6ff;
+      color: #1d4ed8;
+    }
+
+    .btn-map:hover {
+      background: #dbeafe;
+    }
+
+    .btn-waze {
+      background: #fff7ed;
+      color: #c2410c;
+    }
+
+    .btn-waze:hover {
+      background: #ffedd5;
+    }
+
+    .btn-cal {
+      background: #f0fdf4;
+      color: #15803d;
+    }
+
+    .btn-cal:hover {
+      background: #dcfce7;
+    }
+
+    .btn-add {
+      background: var(--guinda);
+      color: #fff;
+    }
+
+    .btn-add:hover:not(:disabled) {
+      background: var(--guinda-light);
+    }
+
+    .btn-add:disabled {
+      background: #6b7280;
+      cursor: default;
+    }
+
+    .btn-fav {
+      background: #fff7ed;
+      color: #c2410c;
+      border: 1px solid #fed7aa;
+    }
+
+    .btn-fav.active {
+      background: #c2410c;
+      color: #fff;
+      border-color: #c2410c;
+    }
+
+    .btn-cloud {
+      background: #eff6ff;
+      color: #1d4ed8;
+      border: 1px solid #bfdbfe;
+      padding: 4px 10px;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .plan-panel {
+      position: sticky;
+      top: calc(var(--header-h) + 8px);
+      max-height: calc(100vh - var(--header-h) - 24px);
+      overflow-y: auto;
+    }
+
+    .plan-item {
+      background: #fff;
+      border-radius: 12px;
+      padding: 10px 12px;
+      margin-bottom: 8px;
+      border: 1px solid #f0e8ec;
+    }
+
+    ::-webkit-scrollbar {
+      width: 5px;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #d1d5db;
+      border-radius: 3px;
+    }
+
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, .5);
+      z-index: 60;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+
+    /* Pill de fechas en card */
+    .date-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: #eff6ff;
+      color: #1e40af;
+      border: 1px solid #bfdbfe;
+      border-radius: 6px;
+      padding: 3px 8px;
+      font-size: 11px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .date-pill.seasonal {
+      background: #fef9c3;
+      color: #854d0e;
+      border-color: #fde047;
+    }
+
+    .date-pill.permanent {
+      background: #f0fdf4;
+      color: #166534;
+      border-color: #86efac;
+    }
+
+    .date-pill.oneoff {
+      background: #fef2f2;
+      color: #dc2626;
+      border-color: #fca5a5;
+    }
+
+    .net-high {
+      color: #059669;
+      font-weight: 600;
+    }
+
+    .net-med {
+      color: #d97706;
+      font-weight: 600;
+    }
+
+    .net-low {
+      color: #6b7280;
+    }
+
+    .cloud-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    .cloud-dot.on {
+      background: #22c55e;
+    }
+
+    .cloud-dot.off {
+      background: #9ca3af;
+    }
+
+    .card-enter {
+      animation: slideIn .18s ease both;
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(6px)
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0)
+      }
+    }
+
+    @media(max-width:768px) {
+      .plan-panel {
+        position: static;
+        max-height: none;
+      }
+
+      :root {
+        --header-h: 165px;
+      }
+    }
+  </style>
 </head>
+
 <body>
 
-<!-- ══ STICKY HEADER ════════════════════════════ -->
-<div id="stickyHeader" class="shadow-lg">
-  <div style="background:linear-gradient(135deg,#6e0d3c,#4a0828);" class="text-white">
-    <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
-      <div class="flex items-center gap-3">
-        <div>
-          <h1 class="text-xl md:text-2xl font-bold" style="font-family:'DM Serif Display',serif;">🦅 Agenda Cultural CDMX</h1>
-          <p class="text-xs opacity-60">Edición Politécnica · Tu ciudad, tu plan</p>
-        </div>
-        <!-- Cloud status -->
-        <div id="cloudBadge" class="hidden">
-          <button onclick="showModal('cloudModal')"
-            class="flex items-center gap-1.5 bg-white/15 hover:bg-white/25 rounded-xl px-3 py-1.5 text-xs font-medium transition-all">
-            <span class="cloud-dot off" id="cloudDot"></span>
-            <span id="cloudLabel">☁️ Sin nube</span>
-          </button>
-        </div>
-      </div>
-
-      <div class="flex items-center gap-2 flex-wrap">
-        <div>
-          <label class="text-xs opacity-60 block mb-0.5">📅 Fecha</label>
-          <input type="date" id="datePicker"
-            class="rounded-xl px-3 py-1.5 text-sm font-medium text-gray-800 bg-white/95 border-0 shadow-sm"
-            style="min-width:155px;">
-        </div>
-        <div>
-          <label class="text-xs opacity-60 block mb-0.5">
-            🔑 Gemini API Key
-            <button onclick="showModal('apiModal')" class="underline opacity-80 hover:opacity-100 ml-1">¿Qué es?</button>
-          </label>
-          <input type="password" id="geminiKey" placeholder="AIza… (funciona tras subir a Vercel)"
-            class="rounded-xl px-3 py-1.5 text-sm text-gray-800 bg-white/95 border-0 shadow-sm"
-            style="min-width:200px;">
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Filtros -->
-  <div class="bg-white border-b border-gray-100">
-    <div class="max-w-7xl mx-auto px-4 py-2 overflow-x-auto">
-      <div class="flex gap-2 min-w-max" id="filterChips">
-        <button class="chip active" data-filter="all">🎯 Todos</button>
-        <button class="chip" data-filter="priority">🔥 Solo hoy</button>
-        <button class="chip" data-filter="ipn">🏛️ IPN</button>
-        <button class="chip" data-filter="premium">✨ Fever/Premium</button>
-        <button class="chip" data-filter="free">🟢 Gratis</button>
-        <button class="chip" data-filter="net">🤝 Networking</button>
-        <button class="chip" data-filter="pet">🐾 Pet-Friendly</button>
-        <button class="chip" data-filter="wildcard">⚡ Comodines</button>
-        <button class="chip" data-filter="sur">🌳 Zona Sur</button>
-        <button class="chip" data-filter="fav">❤️ Favoritos</button>
-        <button class="chip" data-filter="festival">🎪 Festivales</button>
-        <button class="chip" data-filter="foraneo">🗺️ Fuera CDMX</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ══ MAIN ════════════════════════════════════ -->
-<main class="main-content max-w-7xl mx-auto px-4 py-6">
-  <div class="flex flex-col md:flex-row gap-6">
-
-    <!-- LEFT: CARTELERA -->
-    <div class="flex-1 md:w-2/3">
-      <div class="flex items-center justify-between mb-3">
-        <h2 class="text-xl font-bold text-gray-800 serif">Cartelera del día</h2>
-        <span id="eventCount" class="text-sm text-gray-500 bg-white rounded-full px-3 py-1 shadow-sm">—</span>
-      </div>
-      <div id="priorityBanner" class="hidden mb-3 rounded-xl p-3 text-sm font-medium"
-        style="background:linear-gradient(90deg,#fef2f2,#fff7ed);border:1px solid #fca5a5;color:#991b1b;">
-        🔴 Los eventos <strong>Solo hoy</strong> aparecen primero — los ⚡ comodines los puedes hacer otro día con calma.
-      </div>
-      <div id="eventList" class="space-y-3"></div>
-      <div id="noEvents" class="hidden text-center py-16 text-gray-400">
-        <div class="text-5xl mb-3">🌮</div>
-        <p class="font-medium">Sin eventos para este filtro.</p>
-        <p class="text-sm">Prueba otro filtro o cambia la fecha.</p>
-      </div>
-
-      <!-- SECCIÓN FESTIVALES -->
-      <div id="festivalSection" class="hidden mt-2">
-        <div class="flex items-center gap-3 mb-4">
-          <div class="h-px flex-1 bg-purple-200"></div>
-          <h2 class="text-lg font-bold text-purple-700 serif">🎪 Festivales y Eventos Recurrentes</h2>
-          <div class="h-px flex-1 bg-purple-200"></div>
-        </div>
-        <p class="text-sm text-gray-500 mb-4">Dale ❤️ a los que quieres seguir. Aparecerán en <strong>Favoritos</strong> para no perdértelos.</p>
-        <div id="festivalListMain" class="space-y-3"></div>
-      </div>
-
-      <!-- SECCIÓN FORANEOS -->
-      <div id="foraneosSection" class="hidden mt-2">
-        <div class="flex items-center gap-3 mb-4">
-          <div class="h-px flex-1 bg-cyan-200"></div>
-          <h2 class="text-lg font-bold text-cyan-700 serif">🗺️ Grandes Eventos Fuera de CDMX</h2>
-          <div class="h-px flex-1 bg-cyan-200"></div>
-        </div>
-        <p class="text-sm text-gray-500 mb-4">Eventos nacionales para planear con anticipación. Verifica fechas exactas en el sitio oficial.</p>
-        <div id="foraneosListMain" class="space-y-3"></div>
-      </div>
-    </div>
-
-    <!-- RIGHT: PLAN -->
-    <div class="md:w-1/3">
-      <div class="plan-panel">
-
-        <!-- Mi Plan -->
-        <div class="bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden">
-          <div style="background:var(--guinda);" class="p-4">
-            <h2 class="text-white font-bold text-lg serif">📋 Mi Plan de Día</h2>
-            <p class="text-white/70 text-xs mt-0.5" id="planDate">—</p>
+  <!-- ══ STICKY HEADER ════════════════════════════ -->
+  <div id="stickyHeader" class="shadow-lg">
+    <div style="background:linear-gradient(135deg,#6e0d3c,#4a0828);" class="text-white">
+      <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-3">
+          <div>
+            <h1 class="text-xl md:text-2xl font-bold" style="font-family:'DM Serif Display',serif;">🦅 Agenda Cultural
+              CDMX</h1>
+            <p class="text-xs opacity-60">Edición Politécnica · Tu ciudad, tu plan</p>
           </div>
-          <div class="grid grid-cols-3 border-b border-gray-100">
-            <div class="p-3 text-center border-r border-gray-100">
-              <div class="text-2xl font-bold text-guinda" id="statCount">0</div>
-              <div class="text-xs text-gray-400">eventos</div>
-            </div>
-            <div class="p-3 text-center border-r border-gray-100">
-              <div class="text-2xl font-bold text-guinda" id="statCost">$0</div>
-              <div class="text-xs text-gray-400">inversión</div>
-            </div>
-            <div class="p-3 text-center">
-              <div class="text-2xl font-bold text-guinda" id="statPet">0</div>
-              <div class="text-xs text-gray-400">pet 🐾</div>
-            </div>
-          </div>
-          <div class="p-4">
-            <div id="planEmpty" class="text-center py-8 text-gray-400">
-              <div class="text-3xl mb-2">✨</div>
-              <p class="text-sm">Agrega eventos con<br><span class="font-semibold">➕ Al Plan</span></p>
-            </div>
-            <div id="planItems"></div>
-            <div id="planActions" class="hidden mt-3 space-y-2">
-              <button onclick="exportIcal()" class="w-full text-white rounded-2xl py-2.5 font-semibold text-sm hover:opacity-90 flex items-center justify-center gap-2" style="background:var(--guinda);">
-                📥 Descargar plan (.ics)
-              </button>
-              <button onclick="clearPlan()" class="w-full bg-gray-100 text-gray-600 rounded-2xl py-2 font-medium text-sm hover:bg-gray-200">
-                🗑️ Limpiar plan
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Gemini -->
-        <div class="mt-4 bg-white rounded-3xl shadow-sm border border-purple-100 overflow-hidden">
-          <div class="p-4 bg-gradient-to-r from-purple-50 to-indigo-50 border-b border-purple-100">
-            <h3 class="font-bold text-gray-800 text-sm">🤖 Sugerencia IA (Gemini)</h3>
-            <p class="text-xs text-gray-500 mt-0.5">Disponible tras subir la app a Vercel</p>
-          </div>
-          <div class="p-4">
-            <button onclick="askGemini()" class="w-full text-white rounded-xl py-2.5 text-sm font-semibold hover:opacity-90" style="background:linear-gradient(135deg,#7c3aed,#4f46e5);">
-              ✨ Sugerir con IA
+          <!-- Cloud status -->
+          <div id="cloudBadge" class="hidden">
+            <button onclick="showModal('cloudModal')"
+              class="flex items-center gap-1.5 bg-white/15 hover:bg-white/25 rounded-xl px-3 py-1.5 text-xs font-medium transition-all">
+              <span class="cloud-dot off" id="cloudDot"></span>
+              <span id="cloudLabel">☁️ Sin nube</span>
             </button>
-            <div id="geminiResponse" class="mt-3 text-xs text-gray-700 leading-relaxed hidden bg-purple-50 rounded-xl p-3"></div>
           </div>
         </div>
 
-        <!-- Favoritos -->
-        <div class="mt-4 bg-white rounded-3xl shadow-sm border border-orange-100 overflow-hidden">
-          <div class="p-4 bg-gradient-to-r from-orange-50 to-amber-50 border-b border-orange-100">
-            <h3 class="font-bold text-gray-800 text-sm">❤️ Mis Favoritos</h3>
-            <p class="text-xs text-gray-500 mt-0.5">Eventos y festivales que no quieres perderte</p>
+        <div class="flex items-center gap-2 flex-wrap">
+          <div>
+            <label class="text-xs opacity-60 block mb-0.5">📅 Fecha</label>
+            <input type="date" id="datePicker"
+              class="rounded-xl px-3 py-1.5 text-sm font-medium text-gray-800 bg-white/95 border-0 shadow-sm"
+              style="min-width:155px;">
           </div>
-          <div class="p-4" id="favPanel">
-            <p class="text-xs text-gray-400 text-center py-2">Dale ❤️ a cualquier evento o festival</p>
+          <div>
+            <label class="text-xs opacity-60 block mb-0.5">
+              🔑 Gemini API Key
+              <button onclick="showModal('apiModal')" class="underline opacity-80 hover:opacity-100 ml-1">¿Qué
+                es?</button>
+            </label>
+            <input type="password" id="geminiKey" placeholder="AIza… (funciona tras subir a Vercel)"
+              class="rounded-xl px-3 py-1.5 text-sm text-gray-800 bg-white/95 border-0 shadow-sm"
+              style="min-width:200px;">
           </div>
         </div>
+      </div>
+    </div>
 
-        <!-- Cloud setup hint -->
-        <div id="cloudHint" class="mt-4 bg-blue-50 border border-blue-200 rounded-2xl p-4 text-xs text-blue-700">
-          <p class="font-semibold text-blue-800 mb-1">☁️ Sincronización entre dispositivos</p>
-          <p class="mb-2">Configura Firebase para que tu plan y favoritos se guarden en la nube y estén disponibles desde cualquier dispositivo.</p>
-          <button onclick="showModal('cloudModal')" class="btn-cloud">Configurar ☁️</button>
+    <!-- Filtros -->
+    <div class="bg-white border-b border-gray-100">
+      <div class="max-w-7xl mx-auto px-4 py-2 overflow-x-auto">
+        <div class="flex gap-2 min-w-max" id="filterChips">
+          <button class="chip active" data-filter="all">🎯 Todos</button>
+          <button class="chip" data-filter="priority">🔥 Solo hoy</button>
+          <button class="chip" data-filter="ipn">🏛️ IPN</button>
+          <button class="chip" data-filter="premium">✨ Fever/Premium</button>
+          <button class="chip" data-filter="free">🟢 Gratis</button>
+          <button class="chip" data-filter="net">🤝 Networking</button>
+          <button class="chip" data-filter="pet">🐾 Pet-Friendly</button>
+          <button class="chip" data-filter="wildcard">⚡ Comodines</button>
+          <button class="chip" data-filter="sur">🌳 Zona Sur</button>
+          <button class="chip" data-filter="fav">❤️ Favoritos</button>
+          <button class="chip" data-filter="festival">🎪 Festivales</button>
+          <button class="chip" data-filter="foraneo">🗺️ Fuera CDMX</button>
         </div>
       </div>
     </div>
   </div>
-</main>
 
-<!-- ══ MODAL: CLOUD / FIREBASE ════════════════ -->
-<div id="cloudModal" class="modal-overlay hidden">
-  <div class="bg-white rounded-3xl max-w-lg w-full max-h-screen overflow-y-auto p-6">
-    <div class="flex items-center justify-between mb-4">
-      <h3 class="font-bold text-xl text-gray-800 serif">☁️ Sincronización en la Nube</h3>
-      <button onclick="hideModal('cloudModal')" class="text-gray-400 hover:text-gray-600 text-3xl leading-none">&times;</button>
-    </div>
+  <!-- ══ MAIN ════════════════════════════════════ -->
+  <main class="main-content max-w-7xl mx-auto px-4 py-6">
+    <div class="flex flex-col md:flex-row gap-6">
 
-    <div class="space-y-4 text-sm">
-      <div class="bg-blue-50 rounded-2xl p-4">
-        <p class="font-semibold text-blue-800 mb-1">🆔 Tu ID de usuario actual</p>
-        <div class="flex gap-2 items-center">
-          <code class="bg-white border border-blue-200 rounded-lg px-3 py-1.5 text-xs flex-1 overflow-auto" id="userIdDisplay">—</code>
-          <button onclick="copyUserId()" class="btn-cloud shrink-0">Copiar</button>
+      <!-- LEFT: CARTELERA -->
+      <div class="flex-1 md:w-2/3">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-xl font-bold text-gray-800 serif">Cartelera del día</h2>
+          <span id="eventCount" class="text-sm text-gray-500 bg-white rounded-full px-3 py-1 shadow-sm">—</span>
         </div>
-        <p class="text-xs text-blue-600 mt-2">Guarda este ID. Al pegarlo en otro dispositivo, verás tus mismos planes y favoritos.</p>
-      </div>
+        <div id="priorityBanner" class="hidden mb-3 rounded-xl p-3 text-sm font-medium"
+          style="background:linear-gradient(90deg,#fef2f2,#fff7ed);border:1px solid #fca5a5;color:#991b1b;">
+          🔴 Los eventos <strong>Solo hoy</strong> aparecen primero — los ⚡ comodines los puedes hacer otro día con
+          calma.
+        </div>
+        <div id="eventList" class="space-y-3"></div>
+        <div id="noEvents" class="hidden text-center py-16 text-gray-400">
+          <div class="text-5xl mb-3">🌮</div>
+          <p class="font-medium">Sin eventos para este filtro.</p>
+          <p class="text-sm">Prueba otro filtro o cambia la fecha.</p>
+        </div>
 
-      <div>
-        <label class="text-xs font-semibold text-gray-700 block mb-1">Usar ID de otro dispositivo:</label>
-        <div class="flex gap-2">
-          <input id="userIdInput" type="text" placeholder="Pega tu ID aquí..."
-            class="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300">
-          <button onclick="applyUserId()" class="btn-cloud shrink-0">Aplicar</button>
+        <!-- SECCIÓN FESTIVALES -->
+        <div id="festivalSection" class="hidden mt-2">
+          <div class="flex items-center gap-3 mb-4">
+            <div class="h-px flex-1 bg-purple-200"></div>
+            <h2 class="text-lg font-bold text-purple-700 serif">🎪 Festivales y Eventos Recurrentes</h2>
+            <div class="h-px flex-1 bg-purple-200"></div>
+          </div>
+          <p class="text-sm text-gray-500 mb-4">Dale ❤️ a los que quieres seguir. Aparecerán en
+            <strong>Favoritos</strong> para no perdértelos.
+          </p>
+          <div id="festivalListMain" class="space-y-3"></div>
+        </div>
+
+        <!-- SECCIÓN FORANEOS -->
+        <div id="foraneosSection" class="hidden mt-2">
+          <div class="flex items-center gap-3 mb-4">
+            <div class="h-px flex-1 bg-cyan-200"></div>
+            <h2 class="text-lg font-bold text-cyan-700 serif">🗺️ Grandes Eventos Fuera de CDMX</h2>
+            <div class="h-px flex-1 bg-cyan-200"></div>
+          </div>
+          <p class="text-sm text-gray-500 mb-4">Eventos nacionales para planear con anticipación. Verifica fechas
+            exactas en el sitio oficial.</p>
+          <div id="foraneosListMain" class="space-y-3"></div>
         </div>
       </div>
 
-      <div class="border-t border-gray-100 pt-4">
-        <p class="font-semibold text-gray-800 mb-2">🔧 Configurar Firebase (base de datos gratis)</p>
-        <ol class="space-y-2 text-xs text-gray-600 list-decimal list-inside">
-          <li>Ve a <a href="https://console.firebase.google.com" target="_blank" class="text-blue-600 underline">console.firebase.google.com</a></li>
-          <li>Crea un proyecto nuevo (nombre libre, p.ej. "mi-agenda-cdmx")</li>
-          <li>En el menú lateral: <strong>Build → Firestore Database → Create database</strong></li>
-          <li>Selecciona <strong>Start in test mode</strong> (30 días gratis, puedes ampliar)</li>
-          <li>Ve a <strong>Project Settings ⚙️ → General → Your apps → Add app → Web &lt;/&gt;</strong></li>
-          <li>Copia el objeto <code class="bg-gray-100 px-1 rounded">firebaseConfig</code> que te da Google</li>
-          <li>Pégalo en el archivo HTML reemplazando el bloque <code class="bg-gray-100 px-1 rounded">FIREBASE_CONFIG</code> al inicio del <code class="bg-gray-100 px-1 rounded">&lt;script type="module"&gt;</code></li>
-          <li>Guarda el archivo y vuelve a subirlo a Vercel</li>
-        </ol>
-      </div>
+      <!-- RIGHT: PLAN -->
+      <div class="md:w-1/3">
+        <div class="plan-panel">
 
-      <div class="bg-green-50 rounded-xl p-3 text-xs text-green-700">
-        <p class="font-semibold text-green-800 mb-1">✅ Plan gratuito de Firebase incluye:</p>
-        <p>1 GB de almacenamiento · 50,000 lecturas/día · 20,000 escrituras/día · más que suficiente para uso personal</p>
-      </div>
+          <!-- Mi Plan -->
+          <div class="bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden">
+            <div style="background:var(--guinda);" class="p-4">
+              <h2 class="text-white font-bold text-lg serif">📋 Mi Plan de Día</h2>
+              <p class="text-white/70 text-xs mt-0.5" id="planDate">—</p>
+            </div>
+            <div class="grid grid-cols-3 border-b border-gray-100">
+              <div class="p-3 text-center border-r border-gray-100">
+                <div class="text-2xl font-bold text-guinda" id="statCount">0</div>
+                <div class="text-xs text-gray-400">eventos</div>
+              </div>
+              <div class="p-3 text-center border-r border-gray-100">
+                <div class="text-2xl font-bold text-guinda" id="statCost">$0</div>
+                <div class="text-xs text-gray-400">inversión</div>
+              </div>
+              <div class="p-3 text-center">
+                <div class="text-2xl font-bold text-guinda" id="statPet">0</div>
+                <div class="text-xs text-gray-400">pet 🐾</div>
+              </div>
+            </div>
+            <div class="p-4">
+              <div id="planEmpty" class="text-center py-8 text-gray-400">
+                <div class="text-3xl mb-2">✨</div>
+                <p class="text-sm">Agrega eventos con<br><span class="font-semibold">➕ Al Plan</span></p>
+              </div>
+              <div id="planItems"></div>
+              <div id="planActions" class="hidden mt-3 space-y-2">
+                <button onclick="exportIcal()"
+                  class="w-full text-white rounded-2xl py-2.5 font-semibold text-sm hover:opacity-90 flex items-center justify-center gap-2"
+                  style="background:var(--guinda);">
+                  📥 Descargar plan (.ics)
+                </button>
+                <button onclick="clearPlan()"
+                  class="w-full bg-gray-100 text-gray-600 rounded-2xl py-2 font-medium text-sm hover:bg-gray-200">
+                  🗑️ Limpiar plan
+                </button>
+              </div>
+            </div>
+          </div>
 
-      <div class="bg-amber-50 rounded-xl p-3 text-xs text-amber-700">
-        <p class="font-semibold text-amber-800 mb-1">⚠️ Sin Firebase configurado</p>
-        <p>Los planes y favoritos se guardan solo en este navegador/dispositivo con localStorage. Funcionan perfectamente, pero no se sincronizan entre dispositivos.</p>
+          <!-- Gemini -->
+          <div class="mt-4 bg-white rounded-3xl shadow-sm border border-purple-100 overflow-hidden">
+            <div class="p-4 bg-gradient-to-r from-purple-50 to-indigo-50 border-b border-purple-100">
+              <h3 class="font-bold text-gray-800 text-sm">🤖 Sugerencia IA (Gemini)</h3>
+              <p class="text-xs text-gray-500 mt-0.5">Disponible tras subir la app a Vercel</p>
+            </div>
+            <div class="p-4">
+              <button onclick="askGemini()"
+                class="w-full text-white rounded-xl py-2.5 text-sm font-semibold hover:opacity-90"
+                style="background:linear-gradient(135deg,#7c3aed,#4f46e5);">
+                ✨ Sugerir con IA
+              </button>
+              <div id="geminiResponse"
+                class="mt-3 text-xs text-gray-700 leading-relaxed hidden bg-purple-50 rounded-xl p-3"></div>
+            </div>
+          </div>
+
+          <!-- Favoritos -->
+          <div class="mt-4 bg-white rounded-3xl shadow-sm border border-orange-100 overflow-hidden">
+            <div class="p-4 bg-gradient-to-r from-orange-50 to-amber-50 border-b border-orange-100">
+              <h3 class="font-bold text-gray-800 text-sm">❤️ Mis Favoritos</h3>
+              <p class="text-xs text-gray-500 mt-0.5">Eventos y festivales que no quieres perderte</p>
+            </div>
+            <div class="p-4" id="favPanel">
+              <p class="text-xs text-gray-400 text-center py-2">Dale ❤️ a cualquier evento o festival</p>
+            </div>
+          </div>
+
+          <!-- Cloud setup hint -->
+          <div id="cloudHint" class="mt-4 bg-blue-50 border border-blue-200 rounded-2xl p-4 text-xs text-blue-700">
+            <p class="font-semibold text-blue-800 mb-1">☁️ Sincronización entre dispositivos</p>
+            <p class="mb-2">Configura Firebase para que tu plan y favoritos se guarden en la nube y estén disponibles
+              desde cualquier dispositivo.</p>
+            <button onclick="showModal('cloudModal')" class="btn-cloud">Configurar ☁️</button>
+          </div>
+        </div>
       </div>
     </div>
+  </main>
 
-    <div class="flex gap-2 mt-4">
-      <button onclick="hideModal('cloudModal')" class="flex-1 bg-gray-100 text-gray-700 rounded-2xl py-3 font-medium text-sm">Cerrar</button>
-      <button onclick="forceSyncCloud()" class="flex-1 text-white rounded-2xl py-3 font-semibold text-sm hover:opacity-90" style="background:var(--guinda);">
-        Sincronizar ahora ↑
-      </button>
+  <!-- ══ MODAL: CLOUD / FIREBASE ════════════════ -->
+  <div id="cloudModal" class="modal-overlay hidden">
+    <div class="bg-white rounded-3xl max-w-lg w-full max-h-screen overflow-y-auto p-6">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="font-bold text-xl text-gray-800 serif">☁️ Sincronización en la Nube</h3>
+        <button onclick="hideModal('cloudModal')"
+          class="text-gray-400 hover:text-gray-600 text-3xl leading-none">&times;</button>
+      </div>
+
+      <div class="space-y-4 text-sm">
+        <div class="bg-blue-50 rounded-2xl p-4">
+          <p class="font-semibold text-blue-800 mb-1">🆔 Tu ID de usuario actual</p>
+          <div class="flex gap-2 items-center">
+            <code class="bg-white border border-blue-200 rounded-lg px-3 py-1.5 text-xs flex-1 overflow-auto"
+              id="userIdDisplay">—</code>
+            <button onclick="copyUserId()" class="btn-cloud shrink-0">Copiar</button>
+          </div>
+          <p class="text-xs text-blue-600 mt-2">Guarda este ID. Al pegarlo en otro dispositivo, verás tus mismos planes
+            y favoritos.</p>
+        </div>
+
+        <div>
+          <label class="text-xs font-semibold text-gray-700 block mb-1">Usar ID de otro dispositivo:</label>
+          <div class="flex gap-2">
+            <input id="userIdInput" type="text" placeholder="Pega tu ID aquí..."
+              class="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300">
+            <button onclick="applyUserId()" class="btn-cloud shrink-0">Aplicar</button>
+          </div>
+        </div>
+
+        <div class="border-t border-gray-100 pt-4">
+          <p class="font-semibold text-gray-800 mb-2">🔧 Configurar Firebase (base de datos gratis)</p>
+          <ol class="space-y-2 text-xs text-gray-600 list-decimal list-inside">
+            <li>Ve a <a href="https://console.firebase.google.com" target="_blank"
+                class="text-blue-600 underline">console.firebase.google.com</a></li>
+            <li>Crea un proyecto nuevo (nombre libre, p.ej. "mi-agenda-cdmx")</li>
+            <li>En el menú lateral: <strong>Build → Firestore Database → Create database</strong></li>
+            <li>Selecciona <strong>Start in test mode</strong> (30 días gratis, puedes ampliar)</li>
+            <li>Ve a <strong>Project Settings ⚙️ → General → Your apps → Add app → Web &lt;/&gt;</strong></li>
+            <li>Copia el objeto <code class="bg-gray-100 px-1 rounded">firebaseConfig</code> que te da Google</li>
+            <li>Pégalo en el archivo HTML reemplazando el bloque <code
+                class="bg-gray-100 px-1 rounded">FIREBASE_CONFIG</code> al inicio del <code
+                class="bg-gray-100 px-1 rounded">&lt;script type="module"&gt;</code></li>
+            <li>Guarda el archivo y vuelve a subirlo a Vercel</li>
+          </ol>
+        </div>
+
+        <div class="bg-green-50 rounded-xl p-3 text-xs text-green-700">
+          <p class="font-semibold text-green-800 mb-1">✅ Plan gratuito de Firebase incluye:</p>
+          <p>1 GB de almacenamiento · 50,000 lecturas/día · 20,000 escrituras/día · más que suficiente para uso personal
+          </p>
+        </div>
+
+        <div class="bg-amber-50 rounded-xl p-3 text-xs text-amber-700">
+          <p class="font-semibold text-amber-800 mb-1">⚠️ Sin Firebase configurado</p>
+          <p>Los planes y favoritos se guardan solo en este navegador/dispositivo con localStorage. Funcionan
+            perfectamente, pero no se sincronizan entre dispositivos.</p>
+        </div>
+      </div>
+
+      <div class="flex gap-2 mt-4">
+        <button onclick="hideModal('cloudModal')"
+          class="flex-1 bg-gray-100 text-gray-700 rounded-2xl py-3 font-medium text-sm">Cerrar</button>
+        <button onclick="forceSyncCloud()"
+          class="flex-1 text-white rounded-2xl py-3 font-semibold text-sm hover:opacity-90"
+          style="background:var(--guinda);">
+          Sincronizar ahora ↑
+        </button>
+      </div>
     </div>
   </div>
-</div>
 
-<!-- ══ MODAL: API KEY GEMINI ══════════════════ -->
-<div id="apiModal" class="modal-overlay hidden">
-  <div class="bg-white rounded-3xl max-w-lg w-full max-h-screen overflow-y-auto p-6">
-    <div class="flex items-center justify-between mb-4">
-      <h3 class="font-bold text-xl text-gray-800 serif">🔑 API Key de Gemini</h3>
-      <button onclick="hideModal('apiModal')" class="text-gray-400 hover:text-gray-600 text-3xl leading-none">&times;</button>
+  <!-- ══ MODAL: API KEY GEMINI ══════════════════ -->
+  <div id="apiModal" class="modal-overlay hidden">
+    <div class="bg-white rounded-3xl max-w-lg w-full max-h-screen overflow-y-auto p-6">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="font-bold text-xl text-gray-800 serif">🔑 API Key de Gemini</h3>
+        <button onclick="hideModal('apiModal')"
+          class="text-gray-400 hover:text-gray-600 text-3xl leading-none">&times;</button>
+      </div>
+      <div class="space-y-4 text-sm">
+        <div class="bg-amber-50 rounded-2xl p-4 border border-amber-200">
+          <p class="font-bold text-amber-800 mb-1">⚠️ Importante: requiere Vercel</p>
+          <p class="text-amber-700 text-xs leading-relaxed">La API de Gemini bloquea solicitudes desde archivos locales
+            y localhost por una política de seguridad llamada CORS. <strong>Funcionará automáticamente una vez que subas
+              la app a Vercel</strong> (siguiente paso del proyecto).</p>
+        </div>
+        <div class="bg-blue-50 rounded-2xl p-4">
+          <p class="font-semibold text-blue-800 mb-2">📌 Obtener API Key gratis:</p>
+          <ol class="space-y-1.5 list-decimal list-inside text-xs text-blue-700">
+            <li>Ve a <a href="https://aistudio.google.com" target="_blank"
+                class="underline font-medium">aistudio.google.com</a></li>
+            <li>Inicia sesión con tu cuenta Google</li>
+            <li>Clic en <strong>Get API key → Create API key</strong></li>
+            <li>Copia la clave (empieza con AIza…)</li>
+            <li>Pégala en el campo del encabezado</li>
+          </ol>
+        </div>
+        <div class="bg-green-50 rounded-xl p-3 text-xs text-green-700">
+          <p class="font-semibold text-green-800 mb-1">✅ Plan gratuito:</p>
+          <p>15 solicitudes/minuto · 1,500/día · sin costo</p>
+        </div>
+      </div>
+      <button onclick="hideModal('apiModal')" class="mt-4 w-full text-white rounded-2xl py-3 font-semibold"
+        style="background:var(--guinda);">Entendido</button>
     </div>
-    <div class="space-y-4 text-sm">
-      <div class="bg-amber-50 rounded-2xl p-4 border border-amber-200">
-        <p class="font-bold text-amber-800 mb-1">⚠️ Importante: requiere Vercel</p>
-        <p class="text-amber-700 text-xs leading-relaxed">La API de Gemini bloquea solicitudes desde archivos locales y localhost por una política de seguridad llamada CORS. <strong>Funcionará automáticamente una vez que subas la app a Vercel</strong> (siguiente paso del proyecto).</p>
-      </div>
-      <div class="bg-blue-50 rounded-2xl p-4">
-        <p class="font-semibold text-blue-800 mb-2">📌 Obtener API Key gratis:</p>
-        <ol class="space-y-1.5 list-decimal list-inside text-xs text-blue-700">
-          <li>Ve a <a href="https://aistudio.google.com" target="_blank" class="underline font-medium">aistudio.google.com</a></li>
-          <li>Inicia sesión con tu cuenta Google</li>
-          <li>Clic en <strong>Get API key → Create API key</strong></li>
-          <li>Copia la clave (empieza con AIza…)</li>
-          <li>Pégala en el campo del encabezado</li>
-        </ol>
-      </div>
-      <div class="bg-green-50 rounded-xl p-3 text-xs text-green-700">
-        <p class="font-semibold text-green-800 mb-1">✅ Plan gratuito:</p>
-        <p>15 solicitudes/minuto · 1,500/día · sin costo</p>
-      </div>
-    </div>
-    <button onclick="hideModal('apiModal')" class="mt-4 w-full text-white rounded-2xl py-3 font-semibold" style="background:var(--guinda);">Entendido</button>
   </div>
-</div>
 
-<script>
-// ══════════════════════════════════════════════════════
-// UTILIDADES DE MAPAS (GPS exacto)
-// ══════════════════════════════════════════════════════
-function mapsUrl(ev) {
-  if (ev.lat && ev.lng)
-    return `https://www.google.com/maps/dir/?api=1&destination=${ev.lat},${ev.lng}`;
-  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(ev.address)}`;
-}
-function wazeUrl(ev) {
-  if (ev.lat && ev.lng)
-    return `https://waze.com/ul?ll=${ev.lat},${ev.lng}&navigate=yes&zoom=17`;
-  return `https://waze.com/ul?q=${encodeURIComponent(ev.address)}&navigate=yes`;
-}
-
-// ══════════════════════════════════════════════════════
-// FECHAS LEGIBLES EN TARJETAS
-// Cada evento tiene un campo `dateInfo` con el texto
-// y `dateType`: 'permanent' | 'seasonal' | 'oneoff' | 'weekly'
-// ══════════════════════════════════════════════════════
-function datePill(ev) {
-  if (!ev.dateInfo) return '';
-  const cls = ev.dateType === 'seasonal' ? 'seasonal'
-            : ev.dateType === 'oneoff'   ? 'oneoff'
-            : ev.dateType === 'weekly'   ? ''
-            : 'permanent';
-  const icon = ev.dateType === 'seasonal' ? '📅'
-             : ev.dateType === 'oneoff'   ? '🔴'
-             : ev.dateType === 'weekly'   ? '🗓️'
-             : '✅';
-  return `<div class="date-pill ${cls}">${icon} ${ev.dateInfo}</div>`;
-}
-
-// ══════════════════════════════════════════════════════
-// BASE DE DATOS — EVENTOS CDMX
-// ══════════════════════════════════════════════════════
-const CDMX_EVENTS = [
-  // ── IPN ──────────────────────────────────────────
-  {id:'i1',time:'10:00',endTime:'17:00',
-   title:'Planetario Luis Enrique Erro',
-   location:'Planetario Luis Enrique Erro',neighborhood:'Zacatenco',
-   address:'Av. IPN s/n, San Pedro Zacatenco, G.A. Madero, CDMX',
-   lat:19.5046,lng:-99.1329,
-   dateInfo:'Mar–Dom, todo el año · 10:00–17:00', dateType:'permanent',
-   inst:'IPN',cost:'Gratis',costVal:0,
-   booking:'Sin reservación · Funciones cada hora',attire:'👟 Cómoda',
-   net:'Bajo',cat:'Ciencia',petFriendly:false,isWildcard:true,priority:false,
-   link:'https://www.planetario.ipn.mx',
-   desc:'El Planetario más icónico del Politécnico te lleva de viaje por el cosmos con proyecciones de alta definición. Las funciones especiales incluyen narración en vivo por astrónomos del IPN. Cerrado los lunes.',
-   days:[2,3,4,5,6,0],months:null},
-
-  {id:'i2',time:'11:00',endTime:'14:00',
-   title:'Feria de Emprendimiento e Innovación IPN',
-   location:'Unidad Profesional Adolfo López Mateos',neighborhood:'Zacatenco',
-   address:'Av. IPN s/n, San Pedro Zacatenco, G.A. Madero, CDMX',
-   lat:19.5050,lng:-99.1326,
-   dateInfo:'Sáb–Dom, temporadas variables (ver ipn.mx)',dateType:'seasonal',
-   inst:'IPN',cost:'Gratis',costVal:0,
-   booking:'Registro en puerta',attire:'👔 Smart Casual',
-   net:'Alto',cat:'Social',petFriendly:false,isWildcard:false,priority:true,
-   link:'https://www.ipn.mx',
-   desc:'Proyectos de egresados y estudiantes del IPN presentan soluciones en biotech, fintech, agronomía e IA. El lugar ideal para hacer conexiones dentro del ecosistema politécnico. Lleva tarjetas.',
-   days:[5,6],months:null},
-
-  {id:'i3',time:'09:00',endTime:'17:00',
-   title:'CICATA Legaria — Laboratorios de Investigación IPN',
-   location:'CICATA Legaria IPN',neighborhood:'Legaria',
-   address:'Calz. Legaria 694, Irrigación, Miguel Hidalgo, CDMX',
-   lat:19.4415,lng:-99.2028,
-   dateInfo:'Lun–Vie, todo el año · 09:00–17:00',dateType:'permanent',
-   inst:'IPN',cost:'Gratis',costVal:0,
-   booking:'Cita previa recomendada',attire:'👟 Cómoda',
-   net:'Bajo',cat:'Ciencia',petFriendly:false,isWildcard:true,priority:false,
-   link:'https://www.cicata.ipn.mx',
-   desc:'El Centro de Investigación del IPN abre sus laboratorios de nanomateriales, biotecnología y energías renovables. Una ventana única al trabajo que egresados del Poli realizan a nivel mundial.',
-   days:[1,2,3,4,5],months:null},
-
-  // ── UNAM ─────────────────────────────────────────
-  {id:'u1',time:'10:00',endTime:'17:00',
-   title:'MUAC — Arte Latinoamericano Contemporáneo',
-   location:'Museo Universitario Arte Contemporáneo',neighborhood:'CU Pedregal',
-   address:'Insurgentes Sur 3000, Ciudad Universitaria, Coyoacán, CDMX',
-   lat:19.3308,lng:-99.1853,
-   dateInfo:'Mié–Dom · 10:00–18:00 · Gratis domingos',dateType:'permanent',
-   inst:'UNAM',cost:'Inversión: $35 - $50',costVal:40,
-   booking:'Taquilla en sitio',attire:'🧥 Casual',
-   net:'Medio',cat:'Arte',petFriendly:false,isWildcard:true,priority:false,
-   link:'https://muac.unam.mx',
-   desc:'El museo de arte contemporáneo universitario más importante del país. Sus exposiciones temporales cuestionan, incomodan y maravillan. El edificio de Teodoro González de León ya es una obra en sí mismo.',
-   days:[3,4,5,6,0],months:null},
-
-  {id:'u2',time:'19:00',endTime:'21:30',
-   title:'OFUNAM — Concierto Sinfónico Temporada Primavera',
-   location:'Sala Nezahualcóyotl UNAM',neighborhood:'CU Pedregal',
-   address:'Circuito Cultural Universitario s/n, Coyoacán, CDMX',
-   lat:19.3324,lng:-99.1874,
-   dateInfo:'Ago–Jun (temporadas) · Jue–Sáb · 19:00',dateType:'seasonal',
-   inst:'UNAM',cost:'Inversión: $80 - $350',costVal:200,
-   booking:'Ticketmaster o taquilla · Agotamiento frecuente',attire:'👔 Smart Casual',
-   net:'Medio',cat:'Música',petFriendly:false,isWildcard:false,priority:true,
-   link:'https://filarmonica.unam.mx',
-   desc:'La Orquesta Filarmónica de la UNAM en plena temporada. La Sala Nezahualcóyotl tiene acústica de clase mundial. Cuando hay función, es de las mejores decisiones culturales posibles.',
-   days:[4,5,6],months:[1,2,3,4,5,8,9,10,11,12]},
-
-  {id:'u3',time:'10:00',endTime:'18:00',
-   title:'Universum — Museo de las Ciencias UNAM',
-   location:'Universum Museo de las Ciencias',neighborhood:'CU Pedregal',
-   address:'Circuito Cultural Universitario s/n, Coyoacán, CDMX',
-   lat:19.3295,lng:-99.1838,
-   dateInfo:'Mar–Dom · 10:00–18:00 · Abre 9:30 fines de semana',dateType:'permanent',
-   inst:'UNAM',cost:'Inversión: $60 - $80',costVal:70,
-   booking:'Taquilla o en línea · Abre 9:30',attire:'👟 Cómoda',
-   net:'Bajo',cat:'Ciencia',petFriendly:false,isWildcard:true,priority:false,
-   link:'https://universum.unam.mx',
-   desc:'El museo de ciencias más visitado de México. Exposiciones interactivas sobre el cosmos, la vida y la tecnología. Ideal para una tarde de sábado o domingo sin importar la época del año.',
-   days:[2,3,4,5,6,0],months:null},
-
-  {id:'u4',time:'10:00',endTime:'19:00',
-   title:'Cineteca Nacional — Función Especial Festival UNAM',
-   location:'Cineteca Nacional',neighborhood:'Xoco',
-   address:'Av. México-Coyoacán 389, Xoco, Benito Juárez, CDMX',
-   lat:19.3713,lng:-99.1706,
-   dateInfo:'Funciones durante festival UNAM (oct–nov) · Consultar programación',dateType:'seasonal',
-   inst:'UNAM',cost:'Gratis',costVal:0,
-   booking:'Boleto gratis en taquilla · Llegar 30 min antes',attire:'🧥 Casual',
-   net:'Medio',cat:'Cine',petFriendly:false,isWildcard:false,priority:true,
-   link:'https://www.cineunam.unam.mx',
-   desc:'La Cineteca Nacional es el templo del cine de autor en México. Sus funciones especiales gratuitas incluyen cortometrajes de egresados del CUEC y conversatorios con realizadores. Gratuito durante el festival UNAM.',
-   days:[4,5,6,0],months:[10,11]},
-
-  // ── PREMIUM / FEVER ──────────────────────────────
-  {id:'p1',time:'19:30',endTime:'21:30',
-   title:'🕯️ Candlelight: Música en Vivo a la Luz de las Velas',
-   location:'Antiguo Colegio de San Ildefonso',neighborhood:'Centro Histórico',
-   address:'Justo Sierra 16, Centro Histórico, Cuauhtémoc, CDMX',
-   lat:19.4337,lng:-99.1302,
-   dateInfo:'Jue–Sáb, todo el año · Varias funciones por semana (ver Fever)',dateType:'weekly',
-   inst:'Premium',cost:'Inversión: $450 - $950',costVal:700,
-   booking:'Solo Fever · Reservación obligatoria',attire:'👔 Smart Casual',
-   net:'Medio',cat:'Música',petFriendly:false,isWildcard:false,priority:false,
-   link:'https://feverup.com/es/mexico-city',
-   desc:'Miles de velas iluminan uno de los recintos más históricos del Centro. Un cuarteto de cuerdas interpreta desde Coldplay hasta Beethoven en un ambiente íntimo e irrepetible. Verifica el artista de cada semana en la app Fever.',
-   days:[4,5,6],months:null},
-
-  {id:'p2',time:'11:00',endTime:'22:00',
-   title:'🌀 Exposición Inmersiva: Klimt / Van Gogh 360°',
-   location:'Centro Cultural Digital Chapultepec',neighborhood:'Bosque de Chapultepec',
-   address:'Paseo de la Reforma s/n, Bosque de Chapultepec, Miguel Hidalgo, CDMX',
-   lat:19.4273,lng:-99.1869,
-   dateInfo:'Mié–Dom · Temporada variable — verificar en Fever',dateType:'seasonal',
-   inst:'Premium',cost:'Inversión: $350 - $750',costVal:550,
-   booking:'Compra anticipada en línea · Sin reembolso',attire:'🧥 Casual',
-   net:'Bajo',cat:'Arte',petFriendly:false,isWildcard:false,priority:true,
-   link:'https://feverup.com/es/mexico-city',
-   desc:'Arte clásico proyectado en paredes de 8 metros con música envolvente. Una de las exposiciones inmersivas más aclamadas del mundo en el corazón de Chapultepec. El programa rota durante el año — hay que confirmar qué artista está activo.',
-   days:[3,4,5,6,0],months:null},
-
-  {id:'p3',time:'20:00',endTime:'23:00',
-   title:"🎶 Jazz en Vivo — L'Espace Polanco",
-   location:"L'Espace Polanco",neighborhood:'Polanco',
-   address:'Horacio 1426, Los Morales Polanco, Miguel Hidalgo, CDMX',
-   lat:19.4334,lng:-99.2006,
-   dateInfo:'Jue–Sáb · 20:00–23:00 · Todo el año',dateType:'weekly',
-   inst:'Premium',cost:'Inversión: $200 - $400',costVal:300,
-   booking:'Reservación vía Instagram · Mesas limitadas',attire:'👔 Smart Casual',
-   net:'Alto',cat:'Música',petFriendly:false,isWildcard:false,priority:false,
-   link:null,
-   desc:'El jazz más sofisticado de CDMX en un espacio que mezcla arquitectura francesa con cocina de autor. Los jueves a sábados son legendarios entre los conocedores del buen gusto capitalino.',
-   days:[4,5,6],months:null},
-
-  // ── GOBIERNO ─────────────────────────────────────
-  {id:'g1',time:'10:00',endTime:'17:00',
-   title:'Feria del Libro del Palacio de Minería (FILPM)',
-   location:'Palacio de Minería',neighborhood:'Centro Histórico',
-   address:'Tacuba 5, Centro Histórico, Cuauhtémoc, CDMX',
-   lat:19.4348,lng:-99.1417,
-   dateInfo:'Febrero · ~10 días · (aprox. 2–12 feb cada año)',dateType:'seasonal',
-   inst:'Gobierno',cost:'Inversión: $30 - $50',costVal:30,
-   booking:'Taquilla en sitio',attire:'🧥 Casual',
-   net:'Medio',cat:'Bazar',petFriendly:false,isWildcard:false,priority:true,
-   link:'https://www.fil.unam.mx',
-   desc:'Uno de los encuentros literarios más importantes del país, celebrado en uno de los edificios neoclásicos más bellos de CDMX. Cientos de editoriales, presentaciones de autores y el ritual de encontrar ese libro que lo cambia todo.',
-   days:[0,1,2,3,4,5,6],months:[2]},
-
-  {id:'g2',time:'09:00',endTime:'19:00',
-   title:'Museo Nacional de Antropología',
-   location:'Museo Nacional de Antropología',neighborhood:'Polanco',
-   address:'Paseo de la Reforma y Calzada Gandhi s/n, Polanco, Miguel Hidalgo, CDMX',
-   lat:19.4260,lng:-99.1860,
-   dateInfo:'Mar–Dom · 09:00–19:00 · Domingos gratis para mexicanos',dateType:'permanent',
-   inst:'Gobierno',cost:'Inversión: $85',costVal:85,
-   booking:'Taquilla o en línea · Domingo gratis con ID',attire:'👟 Cómoda',
-   net:'Bajo',cat:'Arte',petFriendly:false,isWildcard:true,priority:false,
-   link:'https://www.mna.inah.gob.mx',
-   desc:'El museo más importante de México y uno de los más relevantes del mundo. 23 salas, 14 civilizaciones mesoamericanas, la Piedra del Sol y el tocado de Moctezuma. Los domingos la entrada es gratis para mexicanos.',
-   days:[2,3,4,5,6,0],months:null},
-
-  {id:'g3',time:'09:00',endTime:'14:00',
-   title:'Bazar del Libro Antiguo — Alameda Central',
-   location:'Parque Alameda Central',neighborhood:'Centro Histórico',
-   address:'Av. Juárez s/n, Centro Histórico, Cuauhtémoc, CDMX',
-   lat:19.4358,lng:-99.1453,
-   dateInfo:'Sáb–Dom · 09:00–14:00 · Todo el año',dateType:'weekly',
-   inst:'Gobierno',cost:'Gratis',costVal:0,
-   booking:'Sin reservación · Al aire libre',attire:'👟 Cómoda',
-   net:'Medio',cat:'Bazar',petFriendly:true,isWildcard:false,priority:false,
-   link:'https://cultura.cdmx.gob.mx',
-   desc:'La Alameda se transforma en el mercado bibliófilo más entrañable de la ciudad. Ediciones de los años 40, revistas históricas, mapas raros y joyas literarias esperan al que tiene ojo y paciencia. Pet-friendly.',
-   days:[6,0],months:null},
-
-  {id:'g4',time:'10:00',endTime:'17:00',
-   title:'Museo Franz Mayer — Artes Decorativas y Talavera',
-   location:'Museo Franz Mayer',neighborhood:'Centro Histórico',
-   address:'Hidalgo 45, Centro Histórico, Cuauhtémoc, CDMX',
-   lat:19.4369,lng:-99.1451,
-   dateInfo:'Mar–Dom · 10:00–17:00 · Martes gratis',dateType:'permanent',
-   inst:'Gobierno',cost:'Inversión: $85',costVal:85,
-   booking:'Taquilla en sitio · Martes gratis',attire:'🧥 Casual',
-   net:'Bajo',cat:'Arte',petFriendly:false,isWildcard:true,priority:false,
-   link:'https://www.franzmayer.org.mx',
-   desc:'Alojado en un hospital del siglo XVI frente a la Alameda, el Franz Mayer conserva la colección de artes decorativas más importante de México. La Talavera Poblana (Patrimonio UNESCO) es la estrella.',
-   days:[2,3,4,5,6,0],months:null},
-
-  {id:'g5',time:'19:30',endTime:'21:30',
-   title:'Cine al Aire Libre — Clásicos del Cine Mexicano',
-   location:'Parque México',neighborhood:'Hipódromo Condesa',
-   address:'Av. México 187, Hipódromo Condesa, Cuauhtémoc, CDMX',
-   lat:19.4120,lng:-99.1703,
-   dateInfo:'Vie–Dom · 19:30 · Primavera–Verano (abr–sep)',dateType:'seasonal',
-   inst:'Gobierno',cost:'Gratis',costVal:0,
-   booking:'Sin reservación · Llevar cobija o silla',attire:'👟 Cómoda',
-   net:'Bajo',cat:'Cine',petFriendly:true,isWildcard:false,priority:false,
-   link:'https://cultura.cdmx.gob.mx',
-   desc:'El Parque México se convierte en cine al aire libre los fines de semana de primavera-verano. Clásicos del cine mexicano bajo las estrellas entre árboles centenarios. Pet-friendly — los perros de la Condesa son fieles espectadores.',
-   days:[5,6,0],months:[4,5,6,7,8,9]},
-
-  {id:'g6',time:'10:00',endTime:'17:30',
-   title:'Palacio de Bellas Artes — Murales y Exposición Temporal',
-   location:'Palacio de Bellas Artes',neighborhood:'Centro Histórico',
-   address:'Av. Hidalgo 1, Centro Histórico, Cuauhtémoc, CDMX',
-   lat:19.4352,lng:-99.1412,
-   dateInfo:'Mar–Dom · 10:00–17:30 · Domingos gratis para mexicanos',dateType:'permanent',
-   inst:'Gobierno',cost:'Inversión: $85',costVal:85,
-   booking:'Taquilla en sitio · Domingo gratis con ID',attire:'🧥 Casual',
-   net:'Bajo',cat:'Arte',petFriendly:false,isWildcard:true,priority:false,
-   link:'https://www.inba.gob.mx',
-   desc:'Los murales de Rivera, Orozco y Siqueiros conviven con la arquitectura Art Nouveau y Art Déco más espectacular del país. Un clásico irrenunciable del itinerario cultural de cualquier chilango con criterio.',
-   days:[2,3,4,5,6,0],months:null},
-
-  // ── INDEPENDIENTE ────────────────────────────────
-  {id:'n1',time:'10:00',endTime:'17:00',
-   title:'Mercado del Diseño Roma Norte',
-   location:'Parque España, Roma Norte',neighborhood:'Roma Norte',
-   address:'Orizaba esq. Sonora, Roma Norte, Cuauhtémoc, CDMX',
-   lat:19.4179,lng:-99.1611,
-   dateInfo:'Primer domingo de cada mes · 10:00–17:00',dateType:'seasonal',
-   inst:'Independiente',cost:'Gratis',costVal:0,
-   booking:'Entrada libre',attire:'🧥 Casual',
-   net:'Alto',cat:'Bazar',petFriendly:true,isWildcard:false,priority:true,
-   link:null,
-   desc:'El mercado más instagrameable de la Roma reúne a diseñadores emergentes, artistas visuales y chefs independientes el primer domingo de cada mes. El café de especialidad es imprescindible.',
-   days:[0],months:null},
-
-  {id:'n2',time:'17:00',endTime:'20:30',
-   title:'Teatro y Cabaret Político — El Circo Volador',
-   location:'El Circo Volador',neighborhood:'Coyoacán',
-   address:'Londres 102, Del Carmen, Coyoacán, CDMX',
-   lat:19.3546,lng:-99.1627,
-   dateInfo:'Jue–Sáb · Programa variable — ver cartelera en sitio',dateType:'weekly',
-   inst:'Independiente',cost:'Inversión: $150 - $300',costVal:200,
-   booking:'Taquilla o en línea',attire:'🧥 Casual',
-   net:'Medio',cat:'Arte',petFriendly:false,isWildcard:false,priority:false,
-   link:'https://elcircovolador.com.mx',
-   desc:'Uno de los espacios culturales más eclécticos de la ciudad. Cabaret político y teatro experimental con ironía, crítica social y performance. El Sur de CDMX en su máxima expresión cultural.',
-   days:[4,5,6],months:null},
-
-  {id:'n3',time:'20:30',endTime:'23:00',
-   title:'Música en Vivo: Rock Nacional — Foro Indie Rocks!',
-   location:'Foro Indie Rocks!',neighborhood:'Roma Norte',
-   address:'Sonora 147, Roma Norte, Cuauhtémoc, CDMX',
-   lat:19.4194,lng:-99.1578,
-   dateInfo:'Jue–Sáb · Programa semanal variable — ver indierocks.mx',dateType:'weekly',
-   inst:'Independiente',cost:'Inversión: $200 - $400',costVal:300,
-   booking:'Boleto en línea o taquilla',attire:'🧥 Casual',
-   net:'Medio',cat:'Música',petFriendly:false,isWildcard:false,priority:false,
-   link:'https://www.indierocks.mx',
-   desc:'El corazón del rock alternativo e indie mexicano. Con capacidad íntima y acústica cuidada, cada concierto se siente como un secreto compartido entre los que saben.',
-   days:[4,5,6],months:null},
-
-  {id:'n4',time:'08:00',endTime:'16:00',
-   title:'Senderismo — Los Dinamos de Contreras',
-   location:'Los Dinamos, Parque Nacional',neighborhood:'La Magdalena Contreras',
-   address:'Carretera al Ajusco Km 23.5, La Magdalena Contreras, CDMX',
-   lat:19.2858,lng:-99.2327,
-   dateInfo:'Todos los días · 07:00–17:00 · Mejor en fines de semana',dateType:'permanent',
-   inst:'Gobierno',cost:'Gratis',costVal:0,
-   booking:'Sin reservación · Llevar agua y snacks',attire:'👟 Cómoda',
-   net:'Bajo',cat:'Naturaleza',petFriendly:true,isWildcard:true,priority:false,
-   link:null,
-   desc:'El pulmón verde del sur con rutas de senderismo entre pinos y arroyos a 30 min del Metro. Pet-friendly por excelencia. Cuatro rutas de diferente dificultad y cascadas de agua limpia.',
-   days:[0,1,2,3,4,5,6],months:null},
-
-  {id:'n5',time:'10:00',endTime:'20:00',
-   title:'Mercado de Artesanías — Coyoacán',
-   location:'Mercado de Artesanías Coyoacán',neighborhood:'Coyoacán',
-   address:'Ignacio Allende 38, Del Carmen, Coyoacán, CDMX',
-   lat:19.3508,lng:-99.1628,
-   dateInfo:'Todos los días · 10:00–20:00',dateType:'permanent',
-   inst:'Gobierno',cost:'Gratis',costVal:0,
-   booking:'Entrada libre',attire:'👟 Cómoda',
-   net:'Bajo',cat:'Bazar',petFriendly:true,isWildcard:true,priority:false,
-   link:null,
-   desc:'El corazón artesanal de Coyoacán. Entre talavera, huipiles, joyería de plata y alebrijes, siempre hay algo que se convierte en favorito. A dos pasos del Jardín Centenario.',
-   days:[0,1,2,3,4,5,6],months:null},
-
-  {id:'n6',time:'18:00',endTime:'21:00',
-   title:'Meetup Tech: Startups & IA CDMX',
-   location:'WeWork Reforma 26',neighborhood:'Juárez',
-   address:'Paseo de la Reforma 26, Juárez, Cuauhtémoc, CDMX',
-   lat:19.4269,lng:-99.1601,
-   dateInfo:'Mié–Jue, mensual · Verificar fecha en Eventbrite',dateType:'seasonal',
-   inst:'Independiente',cost:'Gratis',costVal:0,
-   booking:'Registro Eventbrite · Cupo limitado',attire:'👔 Smart Casual',
-   net:'Alto',cat:'Social',petFriendly:false,isWildcard:false,priority:true,
-   link:'https://www.meetup.com/es-ES/Mexico-City/',
-   desc:'El ecosistema de startups más activo de la ciudad se reúne para compartir proyectos y generar sinergias. Pitch sessions de 5 minutos, mentes brillantes y el talento politécnico siempre presente.',
-   days:[3,4],months:null},
-
-  {id:'n7',time:'10:00',endTime:'17:30',
-   title:'Museo Frida Kahlo — La Casa Azul',
-   location:'Museo Frida Kahlo (La Casa Azul)',neighborhood:'Coyoacán',
-   address:'Londres 247, Del Carmen, Coyoacán, CDMX',
-   lat:19.3554,lng:-99.1628,
-   dateInfo:'Mar–Dom · 10:00–17:30 · Solo compra anticipada en línea',dateType:'permanent',
-   inst:'Independiente',cost:'Inversión: $270',costVal:270,
-   booking:'Solo compra anticipada en línea · Sin taquilla',attire:'🧥 Casual',
-   net:'Bajo',cat:'Arte',petFriendly:false,isWildcard:false,priority:false,
-   link:'https://www.museofridakahlo.org.mx',
-   desc:'La Casa Azul es donde nació y murió Frida Kahlo. Sus vestidos tehuana, diarios íntimos y el jardín congelado en el tiempo cuentan una historia de dolor, pasión y genio. Compra con semanas de anticipación.',
-   days:[2,3,4,5,6,0],months:null},
-
-  {id:'n8',time:'08:00',endTime:'22:00',
-   title:'☕ Blend Station — Coworking y Café de Especialidad',
-   location:'Blend Station Roma Norte',neighborhood:'Roma Norte',
-   address:'Álvaro Obregón 64, Roma Norte, Cuauhtémoc, CDMX',
-   lat:19.4148,lng:-99.1618,
-   dateInfo:'Todos los días · 08:00–22:00',dateType:'permanent',
-   inst:'Independiente',cost:'Inversión: $80 - $150',costVal:100,
-   booking:'Sin reservación · Pet-friendly en terraza',attire:'🧥 Casual',
-   net:'Medio',cat:'Social',petFriendly:true,isWildcard:true,priority:false,
-   link:null,
-   desc:'El punto de encuentro de nómadas digitales, freelancers y fundadores de startups de la Roma. Café de origen, terraza con mascotas y los mejores vecinos de mesa de la ciudad.',
-   days:[0,1,2,3,4,5,6],months:null},
-
-  {id:'n9',time:'08:00',endTime:'18:00',
-   title:'🌮 Tour Gastronómico — Mercado de San Juan',
-   location:'Mercado de San Juan',neighborhood:'Centro Histórico',
-   address:'Ernesto Pugibet 21, Centro Histórico, Cuauhtémoc, CDMX',
-   lat:19.4296,lng:-99.1428,
-   dateInfo:'Lun–Dom · 08:00–18:00 · Todo el año',dateType:'permanent',
-   inst:'Independiente',cost:'Inversión: $100 - $200',costVal:150,
-   booking:'Sin reservación · Abre desde las 8am',attire:'👟 Cómoda',
-   net:'Bajo',cat:'Gastronomía',petFriendly:false,isWildcard:true,priority:false,
-   link:null,
-   desc:'El paraíso gastronómico más cosmopolita de CDMX: mariscos frescos, quesos importados, carnes exóticas y cocina japonesa en el mismo pasillo. Parada obligatoria para cualquier foodie.',
-   days:[0,1,2,3,4,5,6],months:null},
-
-  {id:'n10',time:'10:00',endTime:'19:00',
-   title:'Zona Maco — Arte Contemporáneo Internacional',
-   location:'Centro Citibanamex',neighborhood:'Lomas de Sotelo',
-   address:'Av. del Conscripto 311, Lomas de Sotelo, Miguel Hidalgo, CDMX',
-   lat:19.4583,lng:-99.2078,
-   dateInfo:'Febrero · ~5 días · (aprox. primera semana de feb)',dateType:'seasonal',
-   inst:'Independiente',cost:'Inversión: $250 - $600',costVal:350,
-   booking:'Compra anticipada en línea',attire:'👔 Smart Casual',
-   net:'Alto',cat:'Arte',petFriendly:false,isWildcard:false,priority:true,
-   link:'https://www.zonaMaco.com',
-   desc:'La feria de arte contemporáneo más importante de América Latina. Más de 200 galerías de 40 países. El lugar donde el mercado del arte latinoamericano se define cada año.',
-   days:[3,4,5,6,0],months:[2]},
-
-  {id:'n11',time:'19:00',endTime:'22:00',
-   title:'Presentación de Libro — El Péndulo Polanco',
-   location:'El Péndulo Polanco',neighborhood:'Polanco',
-   address:'Alejandro Dumas 81, Polanco, Miguel Hidalgo, CDMX',
-   lat:19.4321,lng:-99.1937,
-   dateInfo:'Jue–Dom · Programa mensual · ver pendulo.com',dateType:'weekly',
-   inst:'Independiente',cost:'Gratis',costVal:0,
-   booking:'Sin reservación · Consumo mínimo en café',attire:'🧥 Casual',
-   net:'Medio',cat:'Arte',petFriendly:false,isWildcard:false,priority:false,
-   link:'https://www.pendulo.com',
-   desc:'La librería-café más sofisticada de la ciudad. Sus noches de presentaciones y lecturas en voz alta son un ritual para lectores y escritores que se buscan sin saberlo.',
-   days:[4,5,6,0],months:null},
-];
-
-// ══════════════════════════════════════════════════════
-// FESTIVALES RECURRENTES
-// ══════════════════════════════════════════════════════
-const FESTIVALS = [
-  {id:'fes1',title:'🎵 EDC México (Electric Daisy Carnival)',
-   city:'Autódromo Hermanos Rodríguez, CDMX',months:'Febrero / Marzo',freq:'Anual',cat:'Música',
-   cost:'$1,800–$8,000',link:'https://www.electricdaisycarnival.com/mexico',
-   tags:['Electrónica','Multitudinario','3 días'],
-   desc:'El festival de música electrónica más grande del hemisferio occidental en México. Tres días de stages monumentales, artistas de talla mundial y producción que rivaliza con Las Vegas. Los boletos se agotan en horas.'},
-  {id:'fes2',title:'🎸 Vive Latino',
-   city:'Foro Sol, CDMX',months:'Marzo',freq:'Anual',cat:'Música',
-   cost:'$1,200–$5,000',link:'https://www.vivelatino.com.mx',
-   tags:['Rock en Español','Pop','Indie','2 días'],
-   desc:'El festival de rock en español más importante del continente. 25+ años de historia mezclando leyendas consagradas con lo mejor del indie latinoamericano. El ritual de inicio de primavera de toda una generación.'},
-  {id:'fes3',title:'🏔️ Festival Internacional Quimera',
-   city:'Monterrey y ciudades tour',months:'Octubre / Noviembre',freq:'Anual',cat:'Música',
-   cost:'$800–$3,000',link:'https://festivalquimera.com',
-   tags:['Alternativo','Indie','Nacional'],
-   desc:'Uno de los festivales independientes más sólidos de México. Su curaduría descubre bandas que serán mainstream al año siguiente. Ideal para el que quiere conocer artistas antes que nadie.'},
-  {id:'fes4',title:"🎺 Tecate Pa'l Norte",
-   city:'Parque Fundidora, Monterrey, NL',months:'Abril (primer fin de semana)',freq:'Anual',cat:'Música',
-   cost:'$1,800–$6,000',link:'https://palnorte.com',
-   tags:['Rock','Pop','Internacional','2 días'],
-   desc:'El festival de rock más grande de América Latina. Tres escenarios simultáneos, artistas internacionales y el calor regiomontano. Los boletos se agotan en minutos — hay que seguir la preventa desde septiembre.'},
-  {id:'fes5',title:'🐾 PetFest CDMX',
-   city:'Varios recintos, CDMX',months:'Variable (varias fechas al año)',freq:'Varias fechas',cat:'Social',
-   cost:'$100–$300',link:'https://www.petfest.mx',
-   tags:['Pet-Friendly','Familiar','Outdoor'],
-   desc:'El festival más grande dedicado a mascotas y sus dueños en México. Adoptaciones, concursos, food trucks pet-friendly, tiendas especializadas y actividades para toda la familia incluyendo a los peludos.'},
-  {id:'fes6',title:'🌮 Coca-Cola Food Fest',
-   city:'CDMX, GDL, MTY y más ciudades',months:'Todo el año (fechas variables)',freq:'Varias fechas',cat:'Gastronomía',
-   cost:'$150–$400',link:'https://www.cocacolafoodfest.com',
-   tags:['Gastronomía','Street Food','Familiar','Pet-Friendly'],
-   desc:'El festival gastronómico más popular de México reúne a los mejores food trucks y restaurantes emergentes. Ideal para explorar tendencias culinarias. Pet-friendly en la mayoría de sedes.'},
-  {id:'fes7',title:'🎬 Festival Internacional de Cine de Morelia (FICM)',
-   city:'Morelia, Michoacán',months:'Octubre (segunda semana, ~8 días)',freq:'Anual',cat:'Cine',
-   cost:'$80–$400',link:'https://moreliafilmfest.com',
-   tags:['Cine de Autor','Arte','Latinoamérica'],
-   desc:'El festival de cine más importante de México. Funciones en portales históricos y teatros del siglo XVIII de Morelia. El lugar donde se descubren los directores que definirán el cine en español de la próxima década.'},
-  {id:'fes8',title:'📖 Festival Cervantino',
-   city:'Guanajuato, GTO',months:'Octubre (dos primeras semanas, ~16 días)',freq:'Anual',cat:'Arte',
-   cost:'$0–$1,500 (muchos eventos gratuitos)',link:'https://www.festivalcervantino.gob.mx',
-   tags:['Teatro','Danza','Internacional','Gratis parcial'],
-   desc:'El festival de artes escénicas más importante de América Latina. Compañías de 30+ países en los callejones y plazas de Guanajuato. Muchos eventos gratuitos al aire libre. Hay que ir al menos una vez en la vida.'},
-  {id:'fes9',title:'🎸 Corona Capital',
-   city:'Autódromo Hermanos Rodríguez, CDMX',months:'Noviembre (tercer fin de semana, 3 días)',freq:'Anual',cat:'Música',
-   cost:'$1,500–$5,000',link:'https://www.coronacapital.com.mx',
-   tags:['Indie','Rock Alternativo','Internacional'],
-   desc:'El festival de música alternativa e indie más importante de México. Artistas de culto y bandas emergentes en un ambiente cosmopolita. Tres días de música que marcan el año — la preventa se agota en horas.'},
-  {id:'fes10',title:'🎈 Festival Internacional del Globo',
-   city:'Parque Guanajuato Bicentenario, León, GTO',months:'Noviembre (primer fin de semana, 3 días)',freq:'Anual',cat:'Visual',
-   cost:'$200–$800',link:'https://www.festivaldelglobo.com.mx',
-   tags:['Familiar','Visual','Cultural','Outdoor'],
-   desc:'El festival de globos aerostáticos más importante de América Latina. Más de 200 globos despegan al amanecer y atardecer. También hay música en vivo, gastronomía y actividades familiares. Uno de los espectáculos visuales más impresionantes del continente.'},
-  {id:'fes11',title:'📚 Feria de San Marcos',
-   city:'Jardín San Marcos, Aguascalientes',months:'Abril–Mayo (~3 semanas, 21 abr–8 may aprox.)',freq:'Anual',cat:'Cultura',
-   cost:'$200–$800',link:'https://ferianacionalsanmarcos.gob.mx',
-   tags:['Cultura Popular','Palenque','Gastronomía','Tradición'],
-   desc:'La feria más grande e importante de México, con más de 200 años de historia. Palenque, jaripeo, artesanías y gastronomía regional. Una experiencia cultural profundamente mexicana e irrepetible.'},
-  {id:'fes12',title:'📚 Feria Internacional del Libro de Guadalajara (FIL)',
-   city:'Expo Guadalajara, Jalisco',months:'Noviembre (última semana, 9 días)',freq:'Anual',cat:'Arte',
-   cost:'$100–$300',link:'https://www.fil.com.mx',
-   tags:['Literatura','Internacional','Profesional'],
-   desc:'La feria de libros más grande de habla hispana y segunda del mundo. Más de 800 editoriales, 20,000 profesionales del libro. Para cualquier amante de la cultura, es una peregrinación obligatoria al menos una vez.'},
-  {id:'fes13',title:'🌊 BPM Festival México',
-   city:'Playa del Carmen, Quintana Roo',months:'Enero (primera semana, ~5 días)',freq:'Anual',cat:'Música',
-   cost:'$2,000–$8,000',link:'https://www.thebpmfestival.com',
-   tags:['Electrónica','Techno','House','Playa'],
-   desc:'El festival de música electrónica más importante de América Latina, con los mejores DJs del mundo en venues frente al Mar Caribe. Música de clase mundial con el paraíso natural de la Riviera Maya como escenario.'},
-];
-
-// IDs de festivales que también aparecen en la sección "Fuera de CDMX"
-const FORANEO_IDS = new Set(['fes4','fes7','fes8','fes10','fes11','fes13']);
-
-// ══════════════════════════════════════════════════════
-// FILTRO POR DÍA Y MES
-// ══════════════════════════════════════════════════════
-function eventApplies(ev, day, month) {
-  if (!ev.days.includes(day)) return false;
-  if (ev.months && !ev.months.includes(month)) return false;
-  return true;
-}
-
-// ══════════════════════════════════════════════════════
-// STATE — con persistencia localStorage + Firebase
-// ══════════════════════════════════════════════════════
-let plansByDate = JSON.parse(localStorage.getItem('agendaPlans') || '{}');
-let favorites   = new Set(JSON.parse(localStorage.getItem('agendaFavs') || '[]'));
-let currentFilter = 'all';
-
-function savePlansLocal() {
-  localStorage.setItem('agendaPlans', JSON.stringify(plansByDate));
-}
-function saveFavsLocal() {
-  localStorage.setItem('agendaFavs', JSON.stringify([...favorites]));
-}
-
-// Sincronizar con Firebase si está disponible
-async function syncCloud() {
-  if (!window.CloudDB || !window.CloudDB.enabled()) return;
-  await window.CloudDB.syncAll(plansByDate, [...favorites]);
-  updateCloudUI(true);
-}
-
-// Cargar datos desde Firebase al iniciar
-async function loadFromCloud() {
-  if (!window.CloudDB || !window.CloudDB.enabled()) return;
-  const data = await window.CloudDB.loadAll();
-  if (!data) return;
-  if (data.plans) {
-    plansByDate = data.plans;
-    savePlansLocal();
-  }
-  if (data.favorites) {
-    favorites = new Set(data.favorites);
-    saveFavsLocal();
-  }
-  renderAll();
-  updateCloudUI(true);
-}
-
-function updateCloudUI(on) {
-  const dot   = document.getElementById('cloudDot');
-  const label = document.getElementById('cloudLabel');
-  const badge = document.getElementById('cloudBadge');
-  if (!dot || !label || !badge) return;
-  badge.classList.remove('hidden');
-  dot.className = 'cloud-dot ' + (on ? 'on' : 'off');
-  label.textContent = on ? '☁️ Nube activa' : '☁️ Sin nube';
-}
-
-function getDateKey() { return document.getElementById('datePicker').value; }
-function getPlan() {
-  const k = getDateKey();
-  if (!plansByDate[k]) plansByDate[k] = [];
-  return plansByDate[k];
-}
-
-// ══════════════════════════════════════════════════════
-// INIT
-// ══════════════════════════════════════════════════════
-document.addEventListener('DOMContentLoaded', async () => {
-  // Mostrar userId en modal
-  const uidEl = document.getElementById('userIdDisplay');
-  if (uidEl && window.CloudDB) uidEl.textContent = window.CloudDB.userId();
-
-  function updateH() {
-    const h = document.getElementById('stickyHeader').offsetHeight;
-    document.documentElement.style.setProperty('--header-h', h + 'px');
-  }
-  setTimeout(updateH, 80);
-  window.addEventListener('resize', updateH);
-
-  const dp = document.getElementById('datePicker');
-  dp.value = new Date().toISOString().split('T')[0];
-  dp.addEventListener('change', () => { updateH(); renderAll(); });
-
-  document.getElementById('filterChips').addEventListener('click', e => {
-    const chip = e.target.closest('[data-filter]');
-    if (!chip) return;
-    document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
-    chip.classList.add('active');
-    currentFilter = chip.dataset.filter;
-    renderEvents();
-  });
-
-  renderAll();
-
-  // Intentar cargar desde la nube (no bloquea la UI)
-  setTimeout(() => {
-    loadFromCloud();
-    updateCloudUI(window.CloudDB && window.CloudDB.enabled());
-  }, 500);
-});
-
-function renderAll() {
-  updatePlanDate();
-  renderEvents();
-  renderPlanUI();
-  renderFestivales();
-  renderFavPanel();
-}
-
-// ══════════════════════════════════════════════════════
-// RENDER EVENTS
-// ══════════════════════════════════════════════════════
-function getFilteredEvents() {
-  if (currentFilter === 'foraneo' || currentFilter === 'festival') return [];
-  const dateObj = new Date(getDateKey() + 'T12:00:00');
-  const day   = dateObj.getDay();
-  const month = dateObj.getMonth() + 1;
-
-  let evs = CDMX_EVENTS.filter(e => eventApplies(e, day, month));
-
-  switch (currentFilter) {
-    case 'priority': evs = evs.filter(e => e.priority && !e.isWildcard); break;
-    case 'ipn':      evs = evs.filter(e => e.inst === 'IPN'); break;
-    case 'premium':  evs = evs.filter(e => e.inst === 'Premium'); break;
-    case 'free':     evs = evs.filter(e => e.costVal <= 0); break;
-    case 'net':      evs = evs.filter(e => e.net === 'Alto'); break;
-    case 'pet':      evs = evs.filter(e => e.petFriendly); break;
-    case 'wildcard': evs = evs.filter(e => e.isWildcard); break;
-    case 'sur': {
-      const SUR = ['coyoacán','contreras','dinamos','pedregal','xochimilco','tlalpan','ajusco','del carmen','coyoacan'];
-      evs = evs.filter(e => { const loc = (e.neighborhood+' '+e.address).toLowerCase(); return SUR.some(k=>loc.includes(k)); });
-      break;
+  <script>
+    // ══════════════════════════════════════════════════════
+    // UTILIDADES DE MAPAS (GPS exacto)
+    // ══════════════════════════════════════════════════════
+    function mapsUrl(ev) {
+      if (ev.lat && ev.lng)
+        return `https://www.google.com/maps/dir/?api=1&destination=${ev.lat},${ev.lng}`;
+      return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(ev.address)}`;
     }
-    case 'fav': evs = evs.filter(e => favorites.has(e.id)); break;
-  }
+    function wazeUrl(ev) {
+      if (ev.lat && ev.lng)
+        return `https://waze.com/ul?ll=${ev.lat},${ev.lng}&navigate=yes&zoom=17`;
+      return `https://waze.com/ul?q=${encodeURIComponent(ev.address)}&navigate=yes`;
+    }
 
-  const priority = evs.filter(e => e.priority && !e.isWildcard).sort((a,b)=>a.time.localeCompare(b.time));
-  const timed    = evs.filter(e => !e.priority && !e.isWildcard && e.time!=='Flexible').sort((a,b)=>a.time.localeCompare(b.time));
-  const wild     = evs.filter(e => e.isWildcard);
-  return [...priority, ...timed, ...wild];
-}
+    // ══════════════════════════════════════════════════════
+    // FECHAS LEGIBLES EN TARJETAS
+    // Cada evento tiene un campo `dateInfo` con el texto
+    // y `dateType`: 'permanent' | 'seasonal' | 'oneoff' | 'weekly'
+    // ══════════════════════════════════════════════════════
+    function datePill(ev) {
+      if (!ev.dateInfo) return '';
+      const cls = ev.dateType === 'seasonal' ? 'seasonal'
+        : ev.dateType === 'oneoff' ? 'oneoff'
+          : ev.dateType === 'weekly' ? ''
+            : 'permanent';
+      const icon = ev.dateType === 'seasonal' ? '📅'
+        : ev.dateType === 'oneoff' ? '🔴'
+          : ev.dateType === 'weekly' ? '🗓️'
+            : '✅';
+      return `<div class="date-pill ${cls}">${icon} ${ev.dateInfo}</div>`;
+    }
 
-function renderEvents() {
-  const evs     = getFilteredEvents();
-  const cont    = document.getElementById('eventList');
-  const noEv    = document.getElementById('noEvents');
-  const countEl = document.getElementById('eventCount');
-  const banner  = document.getElementById('priorityBanner');
-  const forSec  = document.getElementById('foraneosSection');
-  const fesSec  = document.getElementById('festivalSection');
+    // ══════════════════════════════════════════════════════
+    // BASE DE DATOS — EVENTOS CDMX
+    // ══════════════════════════════════════════════════════
+    const CDMX_EVENTS = [
+      // ── IPN ──────────────────────────────────────────
+      {
+        id: 'i1', time: '10:00', endTime: '17:00',
+        title: 'Planetario Luis Enrique Erro',
+        location: 'Planetario Luis Enrique Erro', neighborhood: 'Zacatenco',
+        address: 'Av. IPN s/n, San Pedro Zacatenco, G.A. Madero, CDMX',
+        lat: 19.5046, lng: -99.1329,
+        dateInfo: 'Mar–Dom, todo el año · 10:00–17:00', dateType: 'permanent',
+        inst: 'IPN', cost: 'Gratis', costVal: 0,
+        booking: 'Sin reservación · Funciones cada hora', attire: '👟 Cómoda',
+        net: 'Bajo', cat: 'Ciencia', petFriendly: false, isWildcard: true, priority: false,
+        link: 'https://www.planetario.ipn.mx',
+        desc: 'El Planetario más icónico del Politécnico te lleva de viaje por el cosmos con proyecciones de alta definición. Las funciones especiales incluyen narración en vivo por astrónomos del IPN. Cerrado los lunes.',
+        days: [2, 3, 4, 5, 6, 0], months: null
+      },
 
-  cont.innerHTML = '';
-  forSec.classList.add('hidden');
-  fesSec.classList.add('hidden');
-  banner.classList.add('hidden');
+      {
+        id: 'i2', time: '11:00', endTime: '14:00',
+        title: 'Feria de Emprendimiento e Innovación IPN',
+        location: 'Unidad Profesional Adolfo López Mateos', neighborhood: 'Zacatenco',
+        address: 'Av. IPN s/n, San Pedro Zacatenco, G.A. Madero, CDMX',
+        lat: 19.5050, lng: -99.1326,
+        dateInfo: 'Sáb–Dom, temporadas variables (ver ipn.mx)', dateType: 'seasonal',
+        inst: 'IPN', cost: 'Gratis', costVal: 0,
+        booking: 'Registro en puerta', attire: '👔 Smart Casual',
+        net: 'Alto', cat: 'Social', petFriendly: false, isWildcard: false, priority: true,
+        link: 'https://www.ipn.mx',
+        desc: 'Proyectos de egresados y estudiantes del IPN presentan soluciones en biotech, fintech, agronomía e IA. El lugar ideal para hacer conexiones dentro del ecosistema politécnico. Lleva tarjetas.',
+        days: [5, 6], months: null
+      },
 
-  if (currentFilter === 'foraneo') {
-    noEv.classList.add('hidden');
-    forSec.classList.remove('hidden');
-    renderForaneos();
-    countEl.textContent = [...FORANEO_IDS].length + ' eventos nacionales';
-    return;
-  }
-  if (currentFilter === 'festival') {
-    noEv.classList.add('hidden');
-    fesSec.classList.remove('hidden');
-    countEl.textContent = FESTIVALS.length + ' festivales';
-    return;
-  }
+      {
+        id: 'i3', time: '09:00', endTime: '17:00',
+        title: 'CICATA Legaria — Laboratorios de Investigación IPN',
+        location: 'CICATA Legaria IPN', neighborhood: 'Legaria',
+        address: 'Calz. Legaria 694, Irrigación, Miguel Hidalgo, CDMX',
+        lat: 19.4415, lng: -99.2028,
+        dateInfo: 'Lun–Vie, todo el año · 09:00–17:00', dateType: 'permanent',
+        inst: 'IPN', cost: 'Gratis', costVal: 0,
+        booking: 'Cita previa recomendada', attire: '👟 Cómoda',
+        net: 'Bajo', cat: 'Ciencia', petFriendly: false, isWildcard: true, priority: false,
+        link: 'https://www.cicata.ipn.mx',
+        desc: 'El Centro de Investigación del IPN abre sus laboratorios de nanomateriales, biotecnología y energías renovables. Una ventana única al trabajo que egresados del Poli realizan a nivel mundial.',
+        days: [1, 2, 3, 4, 5], months: null
+      },
 
-  if (evs.length === 0) {
-    noEv.classList.remove('hidden');
-    countEl.textContent = '0 eventos';
-    return;
-  }
-  noEv.classList.add('hidden');
-  countEl.textContent = evs.length + ' evento' + (evs.length !== 1 ? 's' : '');
+      // ── UNAM ─────────────────────────────────────────
+      {
+        id: 'u1', time: '10:00', endTime: '17:00',
+        title: 'MUAC — Arte Latinoamericano Contemporáneo',
+        location: 'Museo Universitario Arte Contemporáneo', neighborhood: 'CU Pedregal',
+        address: 'Insurgentes Sur 3000, Ciudad Universitaria, Coyoacán, CDMX',
+        lat: 19.3308, lng: -99.1853,
+        dateInfo: 'Mié–Dom · 10:00–18:00 · Gratis domingos', dateType: 'permanent',
+        inst: 'UNAM', cost: 'Inversión: $35 - $50', costVal: 40,
+        booking: 'Taquilla en sitio', attire: '🧥 Casual',
+        net: 'Medio', cat: 'Arte', petFriendly: false, isWildcard: true, priority: false,
+        link: 'https://muac.unam.mx',
+        desc: 'El museo de arte contemporáneo universitario más importante del país. Sus exposiciones temporales cuestionan, incomodan y maravillan. El edificio de Teodoro González de León ya es una obra en sí mismo.',
+        days: [3, 4, 5, 6, 0], months: null
+      },
 
-  if (currentFilter === 'all' && evs.some(e => e.priority && !e.isWildcard))
-    banner.classList.remove('hidden');
+      {
+        id: 'u2', time: '19:00', endTime: '21:30',
+        title: 'OFUNAM — Concierto Sinfónico Temporada Primavera',
+        location: 'Sala Nezahualcóyotl UNAM', neighborhood: 'CU Pedregal',
+        address: 'Circuito Cultural Universitario s/n, Coyoacán, CDMX',
+        lat: 19.3324, lng: -99.1874,
+        dateInfo: 'Ago–Jun (temporadas) · Jue–Sáb · 19:00', dateType: 'seasonal',
+        inst: 'UNAM', cost: 'Inversión: $80 - $350', costVal: 200,
+        booking: 'Ticketmaster o taquilla · Agotamiento frecuente', attire: '👔 Smart Casual',
+        net: 'Medio', cat: 'Música', petFriendly: false, isWildcard: false, priority: true,
+        link: 'https://filarmonica.unam.mx',
+        desc: 'La Orquesta Filarmónica de la UNAM en plena temporada. La Sala Nezahualcóyotl tiene acústica de clase mundial. Cuando hay función, es de las mejores decisiones culturales posibles.',
+        days: [4, 5, 6], months: [1, 2, 3, 4, 5, 8, 9, 10, 11, 12]
+      },
 
-  const plan = getPlan();
-  evs.forEach((ev, i) => {
-    const d = document.createElement('div');
-    d.innerHTML = buildCard(ev, plan.includes(ev.id));
-    const card = d.firstElementChild;
-    card.classList.add('card-enter');
-    card.style.animationDelay = i * 0.03 + 's';
-    cont.appendChild(card);
-  });
-}
+      {
+        id: 'u3', time: '10:00', endTime: '18:00',
+        title: 'Universum — Museo de las Ciencias UNAM',
+        location: 'Universum Museo de las Ciencias', neighborhood: 'CU Pedregal',
+        address: 'Circuito Cultural Universitario s/n, Coyoacán, CDMX',
+        lat: 19.3295, lng: -99.1838,
+        dateInfo: 'Mar–Dom · 10:00–18:00 · Abre 9:30 fines de semana', dateType: 'permanent',
+        inst: 'UNAM', cost: 'Inversión: $60 - $80', costVal: 70,
+        booking: 'Taquilla o en línea · Abre 9:30', attire: '👟 Cómoda',
+        net: 'Bajo', cat: 'Ciencia', petFriendly: false, isWildcard: true, priority: false,
+        link: 'https://universum.unam.mx',
+        desc: 'El museo de ciencias más visitado de México. Exposiciones interactivas sobre el cosmos, la vida y la tecnología. Ideal para una tarde de sábado o domingo sin importar la época del año.',
+        days: [2, 3, 4, 5, 6, 0], months: null
+      },
 
-// ── Helpers de tarjeta ────────────────────────────────
-function cardClass(inst) {
-  return {IPN:'card-ipn',UNAM:'card-unam',Premium:'card-premium',
-          Gobierno:'card-gobierno',Independiente:'card-independiente'}[inst]||'card-gobierno';
-}
-function instBadge(inst) {
-  const m = {IPN:{c:'badge-ipn',e:'🦅'},UNAM:{c:'badge-unam',e:'🦁'},
-             Premium:{c:'badge-premium',e:'✨'},Gobierno:{c:'badge-gobierno',e:'🏛️'},
-             Independiente:{c:'badge-independiente',e:'🎭'}};
-  const x = m[inst]||m.Gobierno;
-  return `<span class="badge ${x.c}">${x.e} ${inst}</span>`;
-}
-function netSpan(n) {
-  const m={Alto:'net-high 🔥 Alto',Medio:'net-med 👋 Medio',Bajo:'net-low 😌 Bajo'};
-  const c={Alto:'net-high',Medio:'net-med',Bajo:'net-low'};
-  return `<span class="${c[n]||'net-low'}">${m[n]||n}</span>`;
-}
-function calUrl(ev) {
-  const dp=getDateKey(), d=dp.replace(/-/g,'');
-  const st=ev.time==='Flexible'?'100000':ev.time.replace(':','')+'00';
-  const et=ev.endTime==='Flexible'?'200000':ev.endTime.replace(':','')+'00';
-  const p=new URLSearchParams({action:'TEMPLATE',text:ev.title,dates:`${d}T${st}/${d}T${et}`,details:ev.desc,location:ev.address});
-  return `https://calendar.google.com/calendar/render?${p}`;
-}
+      {
+        id: 'u4', time: '10:00', endTime: '19:00',
+        title: 'Cineteca Nacional — Función Especial Festival UNAM',
+        location: 'Cineteca Nacional', neighborhood: 'Xoco',
+        address: 'Av. México-Coyoacán 389, Xoco, Benito Juárez, CDMX',
+        lat: 19.3713, lng: -99.1706,
+        dateInfo: 'Funciones durante festival UNAM (oct–nov) · Consultar programación', dateType: 'seasonal',
+        inst: 'UNAM', cost: 'Gratis', costVal: 0,
+        booking: 'Boleto gratis en taquilla · Llegar 30 min antes', attire: '🧥 Casual',
+        net: 'Medio', cat: 'Cine', petFriendly: false, isWildcard: false, priority: true,
+        link: 'https://www.cineunam.unam.mx',
+        desc: 'La Cineteca Nacional es el templo del cine de autor en México. Sus funciones especiales gratuitas incluyen cortometrajes de egresados del CUEC y conversatorios con realizadores. Gratuito durante el festival UNAM.',
+        days: [4, 5, 6, 0], months: [10, 11]
+      },
 
-function buildCard(ev, inPlan) {
-  const isFav = favorites.has(ev.id);
-  return `
+      // ── PREMIUM / FEVER ──────────────────────────────
+      {
+        id: 'p1', time: '19:30', endTime: '21:30',
+        title: '🕯️ Candlelight: Música en Vivo a la Luz de las Velas',
+        location: 'Antiguo Colegio de San Ildefonso', neighborhood: 'Centro Histórico',
+        address: 'Justo Sierra 16, Centro Histórico, Cuauhtémoc, CDMX',
+        lat: 19.4337, lng: -99.1302,
+        dateInfo: 'Jue–Sáb, todo el año · Varias funciones por semana (ver Fever)', dateType: 'weekly',
+        inst: 'Premium', cost: 'Inversión: $450 - $950', costVal: 700,
+        booking: 'Solo Fever · Reservación obligatoria', attire: '👔 Smart Casual',
+        net: 'Medio', cat: 'Música', petFriendly: false, isWildcard: false, priority: false,
+        link: 'https://feverup.com/es/mexico-city',
+        desc: 'Miles de velas iluminan uno de los recintos más históricos del Centro. Un cuarteto de cuerdas interpreta desde Coldplay hasta Beethoven en un ambiente íntimo e irrepetible. Verifica el artista de cada semana en la app Fever.',
+        days: [4, 5, 6], months: null
+      },
+
+      {
+        id: 'p2', time: '11:00', endTime: '22:00',
+        title: '🌀 Exposición Inmersiva: Klimt / Van Gogh 360°',
+        location: 'Centro Cultural Digital Chapultepec', neighborhood: 'Bosque de Chapultepec',
+        address: 'Paseo de la Reforma s/n, Bosque de Chapultepec, Miguel Hidalgo, CDMX',
+        lat: 19.4273, lng: -99.1869,
+        dateInfo: 'Mié–Dom · Temporada variable — verificar en Fever', dateType: 'seasonal',
+        inst: 'Premium', cost: 'Inversión: $350 - $750', costVal: 550,
+        booking: 'Compra anticipada en línea · Sin reembolso', attire: '🧥 Casual',
+        net: 'Bajo', cat: 'Arte', petFriendly: false, isWildcard: false, priority: true,
+        link: 'https://feverup.com/es/mexico-city',
+        desc: 'Arte clásico proyectado en paredes de 8 metros con música envolvente. Una de las exposiciones inmersivas más aclamadas del mundo en el corazón de Chapultepec. El programa rota durante el año — hay que confirmar qué artista está activo.',
+        days: [3, 4, 5, 6, 0], months: null
+      },
+
+      {
+        id: 'p3', time: '20:00', endTime: '23:00',
+        title: "🎶 Jazz en Vivo — L'Espace Polanco",
+        location: "L'Espace Polanco", neighborhood: 'Polanco',
+        address: 'Horacio 1426, Los Morales Polanco, Miguel Hidalgo, CDMX',
+        lat: 19.4334, lng: -99.2006,
+        dateInfo: 'Jue–Sáb · 20:00–23:00 · Todo el año', dateType: 'weekly',
+        inst: 'Premium', cost: 'Inversión: $200 - $400', costVal: 300,
+        booking: 'Reservación vía Instagram · Mesas limitadas', attire: '👔 Smart Casual',
+        net: 'Alto', cat: 'Música', petFriendly: false, isWildcard: false, priority: false,
+        link: null,
+        desc: 'El jazz más sofisticado de CDMX en un espacio que mezcla arquitectura francesa con cocina de autor. Los jueves a sábados son legendarios entre los conocedores del buen gusto capitalino.',
+        days: [4, 5, 6], months: null
+      },
+
+      // ── GOBIERNO ─────────────────────────────────────
+      {
+        id: 'g1', time: '10:00', endTime: '17:00',
+        title: 'Feria del Libro del Palacio de Minería (FILPM)',
+        location: 'Palacio de Minería', neighborhood: 'Centro Histórico',
+        address: 'Tacuba 5, Centro Histórico, Cuauhtémoc, CDMX',
+        lat: 19.4348, lng: -99.1417,
+        dateInfo: 'Febrero · ~10 días · (aprox. 2–12 feb cada año)', dateType: 'seasonal',
+        inst: 'Gobierno', cost: 'Inversión: $30 - $50', costVal: 30,
+        booking: 'Taquilla en sitio', attire: '🧥 Casual',
+        net: 'Medio', cat: 'Bazar', petFriendly: false, isWildcard: false, priority: true,
+        link: 'https://www.fil.unam.mx',
+        desc: 'Uno de los encuentros literarios más importantes del país, celebrado en uno de los edificios neoclásicos más bellos de CDMX. Cientos de editoriales, presentaciones de autores y el ritual de encontrar ese libro que lo cambia todo.',
+        days: [0, 1, 2, 3, 4, 5, 6], months: [2]
+      },
+
+      {
+        id: 'g2', time: '09:00', endTime: '19:00',
+        title: 'Museo Nacional de Antropología',
+        location: 'Museo Nacional de Antropología', neighborhood: 'Polanco',
+        address: 'Paseo de la Reforma y Calzada Gandhi s/n, Polanco, Miguel Hidalgo, CDMX',
+        lat: 19.4260, lng: -99.1860,
+        dateInfo: 'Mar–Dom · 09:00–19:00 · Domingos gratis para mexicanos', dateType: 'permanent',
+        inst: 'Gobierno', cost: 'Inversión: $85', costVal: 85,
+        booking: 'Taquilla o en línea · Domingo gratis con ID', attire: '👟 Cómoda',
+        net: 'Bajo', cat: 'Arte', petFriendly: false, isWildcard: true, priority: false,
+        link: 'https://www.mna.inah.gob.mx',
+        desc: 'El museo más importante de México y uno de los más relevantes del mundo. 23 salas, 14 civilizaciones mesoamericanas, la Piedra del Sol y el tocado de Moctezuma. Los domingos la entrada es gratis para mexicanos.',
+        days: [2, 3, 4, 5, 6, 0], months: null
+      },
+
+      {
+        id: 'g3', time: '09:00', endTime: '14:00',
+        title: 'Bazar del Libro Antiguo — Alameda Central',
+        location: 'Parque Alameda Central', neighborhood: 'Centro Histórico',
+        address: 'Av. Juárez s/n, Centro Histórico, Cuauhtémoc, CDMX',
+        lat: 19.4358, lng: -99.1453,
+        dateInfo: 'Sáb–Dom · 09:00–14:00 · Todo el año', dateType: 'weekly',
+        inst: 'Gobierno', cost: 'Gratis', costVal: 0,
+        booking: 'Sin reservación · Al aire libre', attire: '👟 Cómoda',
+        net: 'Medio', cat: 'Bazar', petFriendly: true, isWildcard: false, priority: false,
+        link: 'https://cultura.cdmx.gob.mx',
+        desc: 'La Alameda se transforma en el mercado bibliófilo más entrañable de la ciudad. Ediciones de los años 40, revistas históricas, mapas raros y joyas literarias esperan al que tiene ojo y paciencia. Pet-friendly.',
+        days: [6, 0], months: null
+      },
+
+      {
+        id: 'g4', time: '10:00', endTime: '17:00',
+        title: 'Museo Franz Mayer — Artes Decorativas y Talavera',
+        location: 'Museo Franz Mayer', neighborhood: 'Centro Histórico',
+        address: 'Hidalgo 45, Centro Histórico, Cuauhtémoc, CDMX',
+        lat: 19.4369, lng: -99.1451,
+        dateInfo: 'Mar–Dom · 10:00–17:00 · Martes gratis', dateType: 'permanent',
+        inst: 'Gobierno', cost: 'Inversión: $85', costVal: 85,
+        booking: 'Taquilla en sitio · Martes gratis', attire: '🧥 Casual',
+        net: 'Bajo', cat: 'Arte', petFriendly: false, isWildcard: true, priority: false,
+        link: 'https://www.franzmayer.org.mx',
+        desc: 'Alojado en un hospital del siglo XVI frente a la Alameda, el Franz Mayer conserva la colección de artes decorativas más importante de México. La Talavera Poblana (Patrimonio UNESCO) es la estrella.',
+        days: [2, 3, 4, 5, 6, 0], months: null
+      },
+
+      {
+        id: 'g5', time: '19:30', endTime: '21:30',
+        title: 'Cine al Aire Libre — Clásicos del Cine Mexicano',
+        location: 'Parque México', neighborhood: 'Hipódromo Condesa',
+        address: 'Av. México 187, Hipódromo Condesa, Cuauhtémoc, CDMX',
+        lat: 19.4120, lng: -99.1703,
+        dateInfo: 'Vie–Dom · 19:30 · Primavera–Verano (abr–sep)', dateType: 'seasonal',
+        inst: 'Gobierno', cost: 'Gratis', costVal: 0,
+        booking: 'Sin reservación · Llevar cobija o silla', attire: '👟 Cómoda',
+        net: 'Bajo', cat: 'Cine', petFriendly: true, isWildcard: false, priority: false,
+        link: 'https://cultura.cdmx.gob.mx',
+        desc: 'El Parque México se convierte en cine al aire libre los fines de semana de primavera-verano. Clásicos del cine mexicano bajo las estrellas entre árboles centenarios. Pet-friendly — los perros de la Condesa son fieles espectadores.',
+        days: [5, 6, 0], months: [4, 5, 6, 7, 8, 9]
+      },
+
+      {
+        id: 'g6', time: '10:00', endTime: '17:30',
+        title: 'Palacio de Bellas Artes — Murales y Exposición Temporal',
+        location: 'Palacio de Bellas Artes', neighborhood: 'Centro Histórico',
+        address: 'Av. Hidalgo 1, Centro Histórico, Cuauhtémoc, CDMX',
+        lat: 19.4352, lng: -99.1412,
+        dateInfo: 'Mar–Dom · 10:00–17:30 · Domingos gratis para mexicanos', dateType: 'permanent',
+        inst: 'Gobierno', cost: 'Inversión: $85', costVal: 85,
+        booking: 'Taquilla en sitio · Domingo gratis con ID', attire: '🧥 Casual',
+        net: 'Bajo', cat: 'Arte', petFriendly: false, isWildcard: true, priority: false,
+        link: 'https://www.inba.gob.mx',
+        desc: 'Los murales de Rivera, Orozco y Siqueiros conviven con la arquitectura Art Nouveau y Art Déco más espectacular del país. Un clásico irrenunciable del itinerario cultural de cualquier chilango con criterio.',
+        days: [2, 3, 4, 5, 6, 0], months: null
+      },
+
+      // ── INDEPENDIENTE ────────────────────────────────
+      {
+        id: 'n1', time: '10:00', endTime: '17:00',
+        title: 'Mercado del Diseño Roma Norte',
+        location: 'Parque España, Roma Norte', neighborhood: 'Roma Norte',
+        address: 'Orizaba esq. Sonora, Roma Norte, Cuauhtémoc, CDMX',
+        lat: 19.4179, lng: -99.1611,
+        dateInfo: 'Primer domingo de cada mes · 10:00–17:00', dateType: 'seasonal',
+        inst: 'Independiente', cost: 'Gratis', costVal: 0,
+        booking: 'Entrada libre', attire: '🧥 Casual',
+        net: 'Alto', cat: 'Bazar', petFriendly: true, isWildcard: false, priority: true,
+        link: null,
+        desc: 'El mercado más instagrameable de la Roma reúne a diseñadores emergentes, artistas visuales y chefs independientes el primer domingo de cada mes. El café de especialidad es imprescindible.',
+        days: [0], months: null
+      },
+
+      {
+        id: 'n2', time: '17:00', endTime: '20:30',
+        title: 'Teatro y Cabaret Político — El Circo Volador',
+        location: 'El Circo Volador', neighborhood: 'Coyoacán',
+        address: 'Londres 102, Del Carmen, Coyoacán, CDMX',
+        lat: 19.3546, lng: -99.1627,
+        dateInfo: 'Jue–Sáb · Programa variable — ver cartelera en sitio', dateType: 'weekly',
+        inst: 'Independiente', cost: 'Inversión: $150 - $300', costVal: 200,
+        booking: 'Taquilla o en línea', attire: '🧥 Casual',
+        net: 'Medio', cat: 'Arte', petFriendly: false, isWildcard: false, priority: false,
+        link: 'https://elcircovolador.com.mx',
+        desc: 'Uno de los espacios culturales más eclécticos de la ciudad. Cabaret político y teatro experimental con ironía, crítica social y performance. El Sur de CDMX en su máxima expresión cultural.',
+        days: [4, 5, 6], months: null
+      },
+
+      {
+        id: 'n3', time: '20:30', endTime: '23:00',
+        title: 'Música en Vivo: Rock Nacional — Foro Indie Rocks!',
+        location: 'Foro Indie Rocks!', neighborhood: 'Roma Norte',
+        address: 'Sonora 147, Roma Norte, Cuauhtémoc, CDMX',
+        lat: 19.4194, lng: -99.1578,
+        dateInfo: 'Jue–Sáb · Programa semanal variable — ver indierocks.mx', dateType: 'weekly',
+        inst: 'Independiente', cost: 'Inversión: $200 - $400', costVal: 300,
+        booking: 'Boleto en línea o taquilla', attire: '🧥 Casual',
+        net: 'Medio', cat: 'Música', petFriendly: false, isWildcard: false, priority: false,
+        link: 'https://www.indierocks.mx',
+        desc: 'El corazón del rock alternativo e indie mexicano. Con capacidad íntima y acústica cuidada, cada concierto se siente como un secreto compartido entre los que saben.',
+        days: [4, 5, 6], months: null
+      },
+
+      {
+        id: 'n4', time: '08:00', endTime: '16:00',
+        title: 'Senderismo — Los Dinamos de Contreras',
+        location: 'Los Dinamos, Parque Nacional', neighborhood: 'La Magdalena Contreras',
+        address: 'Carretera al Ajusco Km 23.5, La Magdalena Contreras, CDMX',
+        lat: 19.2858, lng: -99.2327,
+        dateInfo: 'Todos los días · 07:00–17:00 · Mejor en fines de semana', dateType: 'permanent',
+        inst: 'Gobierno', cost: 'Gratis', costVal: 0,
+        booking: 'Sin reservación · Llevar agua y snacks', attire: '👟 Cómoda',
+        net: 'Bajo', cat: 'Naturaleza', petFriendly: true, isWildcard: true, priority: false,
+        link: null,
+        desc: 'El pulmón verde del sur con rutas de senderismo entre pinos y arroyos a 30 min del Metro. Pet-friendly por excelencia. Cuatro rutas de diferente dificultad y cascadas de agua limpia.',
+        days: [0, 1, 2, 3, 4, 5, 6], months: null
+      },
+
+      {
+        id: 'n5', time: '10:00', endTime: '20:00',
+        title: 'Mercado de Artesanías — Coyoacán',
+        location: 'Mercado de Artesanías Coyoacán', neighborhood: 'Coyoacán',
+        address: 'Ignacio Allende 38, Del Carmen, Coyoacán, CDMX',
+        lat: 19.3508, lng: -99.1628,
+        dateInfo: 'Todos los días · 10:00–20:00', dateType: 'permanent',
+        inst: 'Gobierno', cost: 'Gratis', costVal: 0,
+        booking: 'Entrada libre', attire: '👟 Cómoda',
+        net: 'Bajo', cat: 'Bazar', petFriendly: true, isWildcard: true, priority: false,
+        link: null,
+        desc: 'El corazón artesanal de Coyoacán. Entre talavera, huipiles, joyería de plata y alebrijes, siempre hay algo que se convierte en favorito. A dos pasos del Jardín Centenario.',
+        days: [0, 1, 2, 3, 4, 5, 6], months: null
+      },
+
+      {
+        id: 'n6', time: '18:00', endTime: '21:00',
+        title: 'Meetup Tech: Startups & IA CDMX',
+        location: 'WeWork Reforma 26', neighborhood: 'Juárez',
+        address: 'Paseo de la Reforma 26, Juárez, Cuauhtémoc, CDMX',
+        lat: 19.4269, lng: -99.1601,
+        dateInfo: 'Mié–Jue, mensual · Verificar fecha en Eventbrite', dateType: 'seasonal',
+        inst: 'Independiente', cost: 'Gratis', costVal: 0,
+        booking: 'Registro Eventbrite · Cupo limitado', attire: '👔 Smart Casual',
+        net: 'Alto', cat: 'Social', petFriendly: false, isWildcard: false, priority: true,
+        link: 'https://www.meetup.com/es-ES/Mexico-City/',
+        desc: 'El ecosistema de startups más activo de la ciudad se reúne para compartir proyectos y generar sinergias. Pitch sessions de 5 minutos, mentes brillantes y el talento politécnico siempre presente.',
+        days: [3, 4], months: null
+      },
+
+      {
+        id: 'n7', time: '10:00', endTime: '17:30',
+        title: 'Museo Frida Kahlo — La Casa Azul',
+        location: 'Museo Frida Kahlo (La Casa Azul)', neighborhood: 'Coyoacán',
+        address: 'Londres 247, Del Carmen, Coyoacán, CDMX',
+        lat: 19.3554, lng: -99.1628,
+        dateInfo: 'Mar–Dom · 10:00–17:30 · Solo compra anticipada en línea', dateType: 'permanent',
+        inst: 'Independiente', cost: 'Inversión: $270', costVal: 270,
+        booking: 'Solo compra anticipada en línea · Sin taquilla', attire: '🧥 Casual',
+        net: 'Bajo', cat: 'Arte', petFriendly: false, isWildcard: false, priority: false,
+        link: 'https://www.museofridakahlo.org.mx',
+        desc: 'La Casa Azul es donde nació y murió Frida Kahlo. Sus vestidos tehuana, diarios íntimos y el jardín congelado en el tiempo cuentan una historia de dolor, pasión y genio. Compra con semanas de anticipación.',
+        days: [2, 3, 4, 5, 6, 0], months: null
+      },
+
+      {
+        id: 'n8', time: '08:00', endTime: '22:00',
+        title: '☕ Blend Station — Coworking y Café de Especialidad',
+        location: 'Blend Station Roma Norte', neighborhood: 'Roma Norte',
+        address: 'Álvaro Obregón 64, Roma Norte, Cuauhtémoc, CDMX',
+        lat: 19.4148, lng: -99.1618,
+        dateInfo: 'Todos los días · 08:00–22:00', dateType: 'permanent',
+        inst: 'Independiente', cost: 'Inversión: $80 - $150', costVal: 100,
+        booking: 'Sin reservación · Pet-friendly en terraza', attire: '🧥 Casual',
+        net: 'Medio', cat: 'Social', petFriendly: true, isWildcard: true, priority: false,
+        link: null,
+        desc: 'El punto de encuentro de nómadas digitales, freelancers y fundadores de startups de la Roma. Café de origen, terraza con mascotas y los mejores vecinos de mesa de la ciudad.',
+        days: [0, 1, 2, 3, 4, 5, 6], months: null
+      },
+
+      {
+        id: 'n9', time: '08:00', endTime: '18:00',
+        title: '🌮 Tour Gastronómico — Mercado de San Juan',
+        location: 'Mercado de San Juan', neighborhood: 'Centro Histórico',
+        address: 'Ernesto Pugibet 21, Centro Histórico, Cuauhtémoc, CDMX',
+        lat: 19.4296, lng: -99.1428,
+        dateInfo: 'Lun–Dom · 08:00–18:00 · Todo el año', dateType: 'permanent',
+        inst: 'Independiente', cost: 'Inversión: $100 - $200', costVal: 150,
+        booking: 'Sin reservación · Abre desde las 8am', attire: '👟 Cómoda',
+        net: 'Bajo', cat: 'Gastronomía', petFriendly: false, isWildcard: true, priority: false,
+        link: null,
+        desc: 'El paraíso gastronómico más cosmopolita de CDMX: mariscos frescos, quesos importados, carnes exóticas y cocina japonesa en el mismo pasillo. Parada obligatoria para cualquier foodie.',
+        days: [0, 1, 2, 3, 4, 5, 6], months: null
+      },
+
+      {
+        id: 'n10', time: '10:00', endTime: '19:00',
+        title: 'Zona Maco — Arte Contemporáneo Internacional',
+        location: 'Centro Citibanamex', neighborhood: 'Lomas de Sotelo',
+        address: 'Av. del Conscripto 311, Lomas de Sotelo, Miguel Hidalgo, CDMX',
+        lat: 19.4583, lng: -99.2078,
+        dateInfo: 'Febrero · ~5 días · (aprox. primera semana de feb)', dateType: 'seasonal',
+        inst: 'Independiente', cost: 'Inversión: $250 - $600', costVal: 350,
+        booking: 'Compra anticipada en línea', attire: '👔 Smart Casual',
+        net: 'Alto', cat: 'Arte', petFriendly: false, isWildcard: false, priority: true,
+        link: 'https://www.zonaMaco.com',
+        desc: 'La feria de arte contemporáneo más importante de América Latina. Más de 200 galerías de 40 países. El lugar donde el mercado del arte latinoamericano se define cada año.',
+        days: [3, 4, 5, 6, 0], months: [2]
+      },
+
+      {
+        id: 'n11', time: '19:00', endTime: '22:00',
+        title: 'Presentación de Libro — El Péndulo Polanco',
+        location: 'El Péndulo Polanco', neighborhood: 'Polanco',
+        address: 'Alejandro Dumas 81, Polanco, Miguel Hidalgo, CDMX',
+        lat: 19.4321, lng: -99.1937,
+        dateInfo: 'Jue–Dom · Programa mensual · ver pendulo.com', dateType: 'weekly',
+        inst: 'Independiente', cost: 'Gratis', costVal: 0,
+        booking: 'Sin reservación · Consumo mínimo en café', attire: '🧥 Casual',
+        net: 'Medio', cat: 'Arte', petFriendly: false, isWildcard: false, priority: false,
+        link: 'https://www.pendulo.com',
+        desc: 'La librería-café más sofisticada de la ciudad. Sus noches de presentaciones y lecturas en voz alta son un ritual para lectores y escritores que se buscan sin saberlo.',
+        days: [4, 5, 6, 0], months: null
+      },
+    ];
+
+    // ══════════════════════════════════════════════════════
+    // FESTIVALES RECURRENTES
+    // ══════════════════════════════════════════════════════
+    const FESTIVALS = [
+      {
+        id: 'fes1', title: '🎵 EDC México (Electric Daisy Carnival)',
+        city: 'Autódromo Hermanos Rodríguez, CDMX', months: 'Febrero / Marzo', freq: 'Anual', cat: 'Música',
+        cost: '$1,800–$8,000', link: 'https://www.electricdaisycarnival.com/mexico',
+        tags: ['Electrónica', 'Multitudinario', '3 días'],
+        desc: 'El festival de música electrónica más grande del hemisferio occidental en México. Tres días de stages monumentales, artistas de talla mundial y producción que rivaliza con Las Vegas. Los boletos se agotan en horas.'
+      },
+      {
+        id: 'fes2', title: '🎸 Vive Latino',
+        city: 'Foro Sol, CDMX', months: 'Marzo', freq: 'Anual', cat: 'Música',
+        cost: '$1,200–$5,000', link: 'https://www.vivelatino.com.mx',
+        tags: ['Rock en Español', 'Pop', 'Indie', '2 días'],
+        desc: 'El festival de rock en español más importante del continente. 25+ años de historia mezclando leyendas consagradas con lo mejor del indie latinoamericano. El ritual de inicio de primavera de toda una generación.'
+      },
+      {
+        id: 'fes3', title: '🏔️ Festival Internacional Quimera',
+        city: 'Monterrey y ciudades tour', months: 'Octubre / Noviembre', freq: 'Anual', cat: 'Música',
+        cost: '$800–$3,000', link: 'https://festivalquimera.com',
+        tags: ['Alternativo', 'Indie', 'Nacional'],
+        desc: 'Uno de los festivales independientes más sólidos de México. Su curaduría descubre bandas que serán mainstream al año siguiente. Ideal para el que quiere conocer artistas antes que nadie.'
+      },
+      {
+        id: 'fes4', title: "🎺 Tecate Pa'l Norte",
+        city: 'Parque Fundidora, Monterrey, NL', months: 'Abril (primer fin de semana)', freq: 'Anual', cat: 'Música',
+        cost: '$1,800–$6,000', link: 'https://palnorte.com',
+        tags: ['Rock', 'Pop', 'Internacional', '2 días'],
+        desc: 'El festival de rock más grande de América Latina. Tres escenarios simultáneos, artistas internacionales y el calor regiomontano. Los boletos se agotan en minutos — hay que seguir la preventa desde septiembre.'
+      },
+      {
+        id: 'fes5', title: '🐾 PetFest CDMX',
+        city: 'Varios recintos, CDMX', months: 'Variable (varias fechas al año)', freq: 'Varias fechas', cat: 'Social',
+        cost: '$100–$300', link: 'https://www.petfest.mx',
+        tags: ['Pet-Friendly', 'Familiar', 'Outdoor'],
+        desc: 'El festival más grande dedicado a mascotas y sus dueños en México. Adoptaciones, concursos, food trucks pet-friendly, tiendas especializadas y actividades para toda la familia incluyendo a los peludos.'
+      },
+      {
+        id: 'fes6', title: '🌮 Coca-Cola Food Fest',
+        city: 'CDMX, GDL, MTY y más ciudades', months: 'Todo el año (fechas variables)', freq: 'Varias fechas', cat: 'Gastronomía',
+        cost: '$150–$400', link: 'https://www.cocacolafoodfest.com',
+        tags: ['Gastronomía', 'Street Food', 'Familiar', 'Pet-Friendly'],
+        desc: 'El festival gastronómico más popular de México reúne a los mejores food trucks y restaurantes emergentes. Ideal para explorar tendencias culinarias. Pet-friendly en la mayoría de sedes.'
+      },
+      {
+        id: 'fes7', title: '🎬 Festival Internacional de Cine de Morelia (FICM)',
+        city: 'Morelia, Michoacán', months: 'Octubre (segunda semana, ~8 días)', freq: 'Anual', cat: 'Cine',
+        cost: '$80–$400', link: 'https://moreliafilmfest.com',
+        tags: ['Cine de Autor', 'Arte', 'Latinoamérica'],
+        desc: 'El festival de cine más importante de México. Funciones en portales históricos y teatros del siglo XVIII de Morelia. El lugar donde se descubren los directores que definirán el cine en español de la próxima década.'
+      },
+      {
+        id: 'fes8', title: '📖 Festival Cervantino',
+        city: 'Guanajuato, GTO', months: 'Octubre (dos primeras semanas, ~16 días)', freq: 'Anual', cat: 'Arte',
+        cost: '$0–$1,500 (muchos eventos gratuitos)', link: 'https://www.festivalcervantino.gob.mx',
+        tags: ['Teatro', 'Danza', 'Internacional', 'Gratis parcial'],
+        desc: 'El festival de artes escénicas más importante de América Latina. Compañías de 30+ países en los callejones y plazas de Guanajuato. Muchos eventos gratuitos al aire libre. Hay que ir al menos una vez en la vida.'
+      },
+      {
+        id: 'fes9', title: '🎸 Corona Capital',
+        city: 'Autódromo Hermanos Rodríguez, CDMX', months: 'Noviembre (tercer fin de semana, 3 días)', freq: 'Anual', cat: 'Música',
+        cost: '$1,500–$5,000', link: 'https://www.coronacapital.com.mx',
+        tags: ['Indie', 'Rock Alternativo', 'Internacional'],
+        desc: 'El festival de música alternativa e indie más importante de México. Artistas de culto y bandas emergentes en un ambiente cosmopolita. Tres días de música que marcan el año — la preventa se agota en horas.'
+      },
+      {
+        id: 'fes10', title: '🎈 Festival Internacional del Globo',
+        city: 'Parque Guanajuato Bicentenario, León, GTO', months: 'Noviembre (primer fin de semana, 3 días)', freq: 'Anual', cat: 'Visual',
+        cost: '$200–$800', link: 'https://www.festivaldelglobo.com.mx',
+        tags: ['Familiar', 'Visual', 'Cultural', 'Outdoor'],
+        desc: 'El festival de globos aerostáticos más importante de América Latina. Más de 200 globos despegan al amanecer y atardecer. También hay música en vivo, gastronomía y actividades familiares. Uno de los espectáculos visuales más impresionantes del continente.'
+      },
+      {
+        id: 'fes11', title: '📚 Feria de San Marcos',
+        city: 'Jardín San Marcos, Aguascalientes', months: 'Abril–Mayo (~3 semanas, 21 abr–8 may aprox.)', freq: 'Anual', cat: 'Cultura',
+        cost: '$200–$800', link: 'https://ferianacionalsanmarcos.gob.mx',
+        tags: ['Cultura Popular', 'Palenque', 'Gastronomía', 'Tradición'],
+        desc: 'La feria más grande e importante de México, con más de 200 años de historia. Palenque, jaripeo, artesanías y gastronomía regional. Una experiencia cultural profundamente mexicana e irrepetible.'
+      },
+      {
+        id: 'fes12', title: '📚 Feria Internacional del Libro de Guadalajara (FIL)',
+        city: 'Expo Guadalajara, Jalisco', months: 'Noviembre (última semana, 9 días)', freq: 'Anual', cat: 'Arte',
+        cost: '$100–$300', link: 'https://www.fil.com.mx',
+        tags: ['Literatura', 'Internacional', 'Profesional'],
+        desc: 'La feria de libros más grande de habla hispana y segunda del mundo. Más de 800 editoriales, 20,000 profesionales del libro. Para cualquier amante de la cultura, es una peregrinación obligatoria al menos una vez.'
+      },
+      {
+        id: 'fes13', title: '🌊 BPM Festival México',
+        city: 'Playa del Carmen, Quintana Roo', months: 'Enero (primera semana, ~5 días)', freq: 'Anual', cat: 'Música',
+        cost: '$2,000–$8,000', link: 'https://www.thebpmfestival.com',
+        tags: ['Electrónica', 'Techno', 'House', 'Playa'],
+        desc: 'El festival de música electrónica más importante de América Latina, con los mejores DJs del mundo en venues frente al Mar Caribe. Música de clase mundial con el paraíso natural de la Riviera Maya como escenario.'
+      },
+    ];
+
+    // IDs de festivales que también aparecen en la sección "Fuera de CDMX"
+    const FORANEO_IDS = new Set(['fes4', 'fes7', 'fes8', 'fes10', 'fes11', 'fes13']);
+
+    // ══════════════════════════════════════════════════════
+    // FILTRO POR DÍA Y MES
+    // ══════════════════════════════════════════════════════
+    function eventApplies(ev, day, month) {
+      if (!ev.days.includes(day)) return false;
+      if (ev.months && !ev.months.includes(month)) return false;
+      return true;
+    }
+
+    // ══════════════════════════════════════════════════════
+    // STATE — con persistencia localStorage + Firebase
+    // ══════════════════════════════════════════════════════
+    let plansByDate = JSON.parse(localStorage.getItem('agendaPlans') || '{}');
+    let favorites = new Set(JSON.parse(localStorage.getItem('agendaFavs') || '[]'));
+    let fetchedEventsByDate = JSON.parse(localStorage.getItem('agendaFetchedEvents') || '{}');
+    let knownEvents = JSON.parse(localStorage.getItem('agendaKnownEvents') || '{}');
+    let fallbackActiveForDate = {};
+    let lastFetchError = '';
+    let currentFilter = 'all';
+
+    async function callGeminiApiWithFallback(prompt, apiKey, options = {}) {
+      const models = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+      let lastErr = null;
+
+      const payload = {
+        contents: [{ parts: [{ text: prompt }] }]
+      };
+
+      if (options.googleSearch) {
+        payload.tools = [{ google_search: {} }];
+      }
+
+      if (options.generationConfig) {
+        payload.generationConfig = options.generationConfig;
+      }
+
+      for (const model of models) {
+        try {
+          console.log(`Intentando consultar modelo en frontend: ${model}`);
+          const response = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload)
+            }
+          );
+
+          if (!response.ok) {
+            const errData = await response.json().catch(() => ({}));
+            const errMsg = errData?.error?.message || `HTTP ${response.status} ${response.statusText}`;
+            lastErr = new Error(errMsg);
+            lastErr.status = response.status;
+            lastErr.details = errData;
+
+            console.warn(`Fallo con modelo ${model} en frontend: ${errMsg}`);
+
+            if (response.status === 400 || response.status === 401 || response.status === 403) {
+              break;
+            }
+            continue;
+          }
+
+          const data = await response.json();
+          const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (!text) {
+            throw new Error(`Respuesta vacía de ${model}`);
+          }
+          return text;
+        } catch (err) {
+          console.warn(`Error de red o de parseo con ${model} en frontend:`, err);
+          lastErr = err;
+        }
+      }
+
+      throw lastErr || new Error('No se pudo establecer conexión con ningún modelo de Gemini.');
+    }
+
+    function savePlansLocal() {
+      localStorage.setItem('agendaPlans', JSON.stringify(plansByDate));
+    }
+    function saveFavsLocal() {
+      localStorage.setItem('agendaFavs', JSON.stringify([...favorites]));
+    }
+    function saveFetchedEventsLocal() {
+      localStorage.setItem('agendaFetchedEvents', JSON.stringify(fetchedEventsByDate));
+    }
+    function saveKnownEventsLocal() {
+      localStorage.setItem('agendaKnownEvents', JSON.stringify(knownEvents));
+    }
+
+    // Sincronizar con Firebase si está disponible
+    async function syncCloud() {
+      if (!window.CloudDB || !window.CloudDB.enabled()) return;
+      await window.CloudDB.syncAll(plansByDate, [...favorites]);
+      updateCloudUI(true);
+    }
+
+    // Cargar datos desde Firebase al iniciar
+    async function loadFromCloud() {
+      if (!window.CloudDB || !window.CloudDB.enabled()) return;
+      const data = await window.CloudDB.loadAll();
+      if (!data) return;
+      if (data.plans) {
+        plansByDate = data.plans;
+        savePlansLocal();
+      }
+      if (data.favorites) {
+        favorites = new Set(data.favorites);
+        saveFavsLocal();
+      }
+      renderAll();
+      updateCloudUI(true);
+    }
+
+    // Buscar eventos para una fecha usando la cascada de caché y APIs
+    async function fetchEvents(dateKey) {
+      // 1. Verificar si ya están en memoria/localStorage
+      if (fetchedEventsByDate[dateKey] && Array.isArray(fetchedEventsByDate[dateKey]) && fetchedEventsByDate[dateKey].length > 0) {
+        fallbackActiveForDate[dateKey] = false;
+        return fetchedEventsByDate[dateKey];
+      }
+
+      // 2. Verificar si están en el caché en la nube (Firestore)
+      if (window.CloudDB && window.CloudDB.enabled()) {
+        try {
+          const cloudEvents = await window.CloudDB.loadCachedEvents(dateKey);
+          if (cloudEvents && Array.isArray(cloudEvents) && cloudEvents.length > 0) {
+            fetchedEventsByDate[dateKey] = cloudEvents;
+            saveFetchedEventsLocal();
+            // Guardar en knownEvents
+            cloudEvents.forEach(e => { knownEvents[e.id] = e; });
+            saveKnownEventsLocal();
+            fallbackActiveForDate[dateKey] = false;
+            return cloudEvents;
+          }
+        } catch (e) {
+          console.warn('Error al cargar caché de Firestore:', e);
+        }
+      }
+
+      // Obtener API key del frontend para llamadas directas/headers
+      const key = document.getElementById('geminiKey') ? document.getElementById('geminiKey').value.trim() : '';
+
+      // Resetear error de carga previo
+      lastFetchError = '';
+
+      // 3. Intentar consultar el endpoint local del servidor (/api/get-events)
+      try {
+        const headers = {};
+        if (key) headers['x-gemini-key'] = key;
+        const res = await fetch(`/api/get-events?date=${dateKey}`, { headers });
+        if (res.ok) {
+          const events = await res.json();
+          if (events && Array.isArray(events) && events.length > 0) {
+            fetchedEventsByDate[dateKey] = events;
+            saveFetchedEventsLocal();
+            events.forEach(e => { knownEvents[e.id] = e; });
+            saveKnownEventsLocal();
+            // Guardar en la nube si está habilitado
+            if (window.CloudDB && window.CloudDB.enabled()) {
+              await window.CloudDB.saveCachedEvents(dateKey, events);
+            }
+            fallbackActiveForDate[dateKey] = false;
+            return events;
+          }
+        } else {
+          const errData = await res.json().catch(() => ({}));
+          lastFetchError = `API local /api/get-events devolvió status ${res.status}: ${errData?.error || 'Sin mensaje'}`;
+          console.warn(`Endpoint /api/get-events devolvió status ${res.status}`);
+        }
+      } catch (err) {
+        lastFetchError = `API local falló (es normal si corres de forma local sin un servidor): ${err.message || err}`;
+        console.warn('No se pudo conectar a /api/get-events:', err);
+      }
+
+      // 4. Intentar llamada directa a la API de Gemini si el usuario proporcionó una API key (Fallback Local)
+      if (key) {
+        try {
+          console.log('Intentando llamada directa a Gemini API...');
+          const prompt = `Busca en internet eventos reales, exposiciones de museos, conciertos, obras de teatro, festivales, mercaditos, bazares, meetups o actividades culturales o sociales que ocurran el día ${dateKey} (año, mes, día específico) en la Ciudad de México (CDMX).
+Consulta fuentes populares como "Donde Ir CDMX", "Cartelera de la Ciudad de México", "Ticketmaster México", "Superboletos", "Boletia", "Eventbrite CDMX", etc.
+Intenta prioritariamente incluir eventos en grandes recintos y espacios icónicos de la ciudad como: Campo Marte, Palacio de los Deportes, WTC, Auditorio Nacional, Auditorio BlackBerry, Estadio GNP (antes Foro Sol), Estadio CDMX (Azul), Arena CDMX, explanadas de las alcaldías, ferias del libro, Teatro Telcel, Carpa Santa Fe, Zócalo Capitalino, etc.
+Debes devolver entre 15 y 20 eventos reales y activos que se lleven a cabo exactamente ese día. Si no hay suficientes eventos específicos para ese día exacto, busca eventos y exposiciones permanentes o de temporada que estén abiertos ese día de la semana.
+Devuelve los resultados obligatoriamente como un arreglo JSON válido de objetos, y absolutamente NADA más (sin explicaciones, sin texto adicional, sin formato markdown de triple comilla invertida, solo el JSON puro que comience con [ y termine con ]). Cada objeto debe representar un evento con los siguientes campos exactos y estructurados:
+- id: un string único corto (ej. 'live_' + número aleatorio o correlativo)
+- time: string formato de 24 horas 'HH:MM' (ej. '19:00') o la palabra 'Flexible' si no tiene horario específico
+- endTime: string formato de 24 horas 'HH:MM' (ej. '21:30') o 'Flexible'
+- title: nombre completo y atractivo del evento
+- location: nombre del lugar o recinto real (ej. 'Foro Sol', 'Palacio de Bellas Artes', 'Parque España')
+- neighborhood: zona o colonia (ej. 'Roma Norte', 'Centro Histórico', 'Polanco', 'Coyoacán')
+- address: dirección física completa en CDMX
+- lat: latitud aproximada (número decimal, ej. 19.4326) o null si no se conoce
+- lng: longitud aproximada (número decimal, ej. -99.1332) o null si no se conoce
+- dateInfo: texto legible del horario y fecha (ej. 'Lunes 8 de Jun · 19:00 hrs')
+- dateType: 'permanent' | 'seasonal' | 'oneoff' | 'weekly' (elige el que mejor aplique)
+- inst: tipo de institución organizadora (elige entre: 'IPN' | 'UNAM' | 'Premium' | 'Gobierno' | 'Independiente')
+- cost: texto descriptivo del costo (ej. 'Gratis' o 'Inversión: $350' o 'Desde $600')
+- costVal: valor numérico del costo mínimo (ej. 0 para gratis, o un entero como 350)
+- booking: información breve de venta de boletos o reservación (ej. 'Ticketmaster' o 'Entrada libre' o 'Taquilla del recinto')
+- attire: tipo de vestimenta sugerida con emoji (ej. '👟 Cómoda' o '🧥 Casual' o '👔 Smart Casual')
+- net: nivel estimado de networking y conexiones (elige entre: 'Bajo' | 'Medio' | 'Alto')
+- cat: categoría principal (elige entre: 'Arte' | 'Música' | 'Cine' | 'Bazar' | 'Ciencia' | 'Social' | 'Gastronomía' | 'Naturaleza')
+- petFriendly: boolean (true o false)
+- isWildcard: boolean (true si es una actividad flexible que se puede hacer cualquier día, false si es de horario/fecha fija)
+- priority: boolean (true si es un concierto, show o evento de un solo día o de alta relevancia, false en caso contrario)
+- link: URL oficial del evento o de la boletera (o null si no hay)
+- desc: descripción amena y detallada del evento de 2 a 3 oraciones en español.
+
+IMPORTANTE: Todos los valores de texto (strings) dentro del JSON deben usar comillas dobles externas. Si dentro del texto necesitas incluir comillas o citar algo, usa comillas simples (') y NUNCA comillas dobles ("), para evitar romper el formato JSON y que sea directamente parseable con JSON.parse.`;
+
+          const text = await callGeminiApiWithFallback(prompt, key, { googleSearch: true });
+          if (text) {
+            let cleanedText = text.trim();
+            const startIdx = cleanedText.indexOf('[');
+            const endIdx = cleanedText.lastIndexOf(']');
+            if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
+              cleanedText = cleanedText.substring(startIdx, endIdx + 1);
+            } else {
+              if (cleanedText.startsWith('```json')) {
+                cleanedText = cleanedText.substring(7, cleanedText.length - 3).trim();
+              } else if (cleanedText.startsWith('```')) {
+                cleanedText = cleanedText.substring(3, cleanedText.length - 3).trim();
+              }
+            }
+            // Sanitizar comas sobrantes al final de listas u objetos (trailing commas)
+            cleanedText = cleanedText.replace(/,(\s*[\]}])/g, '$1');
+            const events = JSON.parse(cleanedText);
+            if (events && Array.isArray(events) && events.length > 0) {
+              fetchedEventsByDate[dateKey] = events;
+              saveFetchedEventsLocal();
+              events.forEach(e => { knownEvents[e.id] = e; });
+              saveKnownEventsLocal();
+              if (window.CloudDB && window.CloudDB.enabled()) {
+                await window.CloudDB.saveCachedEvents(dateKey, events);
+              }
+              fallbackActiveForDate[dateKey] = false;
+              return events;
+            }
+          }
+        } catch (directErr) {
+          lastFetchError = `Llamada directa a Gemini falló: ${directErr.message || directErr}`;
+          console.warn('Error en llamada directa a Gemini API:', directErr);
+        }
+      }
+
+      if (!key && !lastFetchError) {
+        lastFetchError = 'Falta configurar la API Key de Gemini en el panel superior derecho (header) para la búsqueda local.';
+      }
+
+      // 5. Fallback absoluto: Retornar null para indicar que debemos usar los estáticos CDMX_EVENTS
+      fallbackActiveForDate[dateKey] = true;
+      return null;
+    }
+
+    function updateCloudUI(on) {
+      const dot = document.getElementById('cloudDot');
+      const label = document.getElementById('cloudLabel');
+      const badge = document.getElementById('cloudBadge');
+      if (!dot || !label || !badge) return;
+      badge.classList.remove('hidden');
+      dot.className = 'cloud-dot ' + (on ? 'on' : 'off');
+      label.textContent = on ? '☁️ Nube activa' : '☁️ Sin nube';
+    }
+
+    function getDateKey() { return document.getElementById('datePicker').value; }
+    function getPlan() {
+      const k = getDateKey();
+      if (!plansByDate[k]) plansByDate[k] = [];
+      return plansByDate[k];
+    }
+
+    // ══════════════════════════════════════════════════════
+    // INIT
+    // ══════════════════════════════════════════════════════
+    document.addEventListener('DOMContentLoaded', async () => {
+      // Mostrar userId en modal
+      const uidEl = document.getElementById('userIdDisplay');
+      if (uidEl && window.CloudDB) uidEl.textContent = window.CloudDB.userId();
+
+      // Cargar API key de Gemini guardada y guardar cambios
+      const keyInput = document.getElementById('geminiKey');
+      if (keyInput) {
+        keyInput.value = localStorage.getItem('agendaGeminiKey') || '';
+        keyInput.addEventListener('input', () => {
+          localStorage.setItem('agendaGeminiKey', keyInput.value.trim());
+        });
+      }
+
+      // Inicializar knownEvents con los eventos estáticos
+      CDMX_EVENTS.forEach(e => {
+        if (!knownEvents[e.id]) {
+          knownEvents[e.id] = e;
+        }
+      });
+      saveKnownEventsLocal();
+
+      function updateH() {
+        const header = document.getElementById('stickyHeader');
+        if (header) {
+          const h = header.offsetHeight;
+          document.documentElement.style.setProperty('--header-h', h + 'px');
+        }
+      }
+      updateH();
+      if (typeof ResizeObserver !== 'undefined') {
+        const header = document.getElementById('stickyHeader');
+        if (header) {
+          const ro = new ResizeObserver(() => {
+            updateH();
+          });
+          ro.observe(header);
+        }
+      }
+      window.addEventListener('resize', updateH);
+
+      const dp = document.getElementById('datePicker');
+      dp.value = new Date().toISOString().split('T')[0];
+      dp.addEventListener('change', () => { updateH(); renderAll(); });
+
+      document.getElementById('filterChips').addEventListener('click', e => {
+        const chip = e.target.closest('[data-filter]');
+        if (!chip) return;
+        document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        currentFilter = chip.dataset.filter;
+        renderEvents();
+      });
+
+      renderAll();
+
+      // Intentar cargar desde la nube (no bloquea la UI)
+      setTimeout(() => {
+        loadFromCloud();
+        updateCloudUI(window.CloudDB && window.CloudDB.enabled());
+      }, 500);
+    });
+
+    function renderAll() {
+      updatePlanDate();
+      renderEvents();
+      renderPlanUI();
+      renderFestivales();
+      renderFavPanel();
+    }
+
+    // ══════════════════════════════════════════════════════
+    // RENDER EVENTS
+    // ══════════════════════════════════════════════════════
+    /**
+     * Filtra los eventos del día de acuerdo a la categoría seleccionada por el usuario.
+     * Retorna la lista ordenada por prioridad y horario (eventos "Solo hoy" primero,
+     * luego eventos con horario fijo, y finalmente comodines flexibles).
+     */
+    function getFilteredEvents() {
+      // Si el filtro seleccionado es de ámbito nacional o de festivales, no filtramos la cartelera diaria
+      if (currentFilter === 'foraneo' || currentFilter === 'festival') return [];
+      const dateKey = getDateKey();
+
+      let evs = [];
+      // Determinar si tenemos eventos dinámicos cargados en caché para esta fecha
+      const hasDynamic = fetchedEventsByDate[dateKey] && Array.isArray(fetchedEventsByDate[dateKey]) && fetchedEventsByDate[dateKey].length > 0;
+
+      if (hasDynamic && !fallbackActiveForDate[dateKey]) {
+        // Usar la lista de eventos dinámicos recuperados por la IA
+        evs = fetchedEventsByDate[dateKey];
+      } else {
+        // Fallback: Filtrar el listado estático predefinido (CDMX_EVENTS) basado en el día y mes de la fecha seleccionada
+        const dateObj = new Date(dateKey + 'T12:00:00');
+        const day = dateObj.getDay();
+        const month = dateObj.getMonth() + 1;
+        evs = CDMX_EVENTS.filter(e => eventApplies(e, day, month));
+      }
+
+      // Aplicar el filtro de categoría seleccionado (chips del encabezado)
+      switch (currentFilter) {
+        case 'priority': evs = evs.filter(e => e.priority && !e.isWildcard); break;
+        case 'ipn': evs = evs.filter(e => e.inst === 'IPN'); break;
+        case 'premium': evs = evs.filter(e => e.inst === 'Premium'); break;
+        case 'free': evs = evs.filter(e => e.costVal <= 0); break;
+        case 'net': evs = evs.filter(e => e.net === 'Alto'); break;
+        case 'pet': evs = evs.filter(e => e.petFriendly); break;
+        case 'wildcard': evs = evs.filter(e => e.isWildcard); break;
+        case 'sur': {
+          // Filtrado geográfico simple por palabras clave de la zona sur de CDMX
+          const SUR = ['coyoacán', 'contreras', 'dinamos', 'pedregal', 'xochimilco', 'tlalpan', 'ajusco', 'del carmen', 'coyoacan', 'san angel', 'san jerónimo', 'san ángel', 'san jerónimo'];
+          evs = evs.filter(e => { const loc = ((e.neighborhood || '') + ' ' + (e.address || '')).toLowerCase(); return SUR.some(k => loc.includes(k)); });
+          break;
+        }
+        case 'fav': evs = evs.filter(e => favorites.has(e.id)); break;
+      }
+
+      // Ordenar: 1. Prioridad ("Solo hoy") ordenados por hora -> 2. Eventos normales por hora -> 3. Comodines al final
+      const priority = evs.filter(e => e.priority && !e.isWildcard).sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+      const timed = evs.filter(e => !e.priority && !e.isWildcard && e.time !== 'Flexible').sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+      const wild = evs.filter(e => e.isWildcard);
+      return [...priority, ...timed, ...wild];
+    }
+
+    async function renderEvents() {
+      const cont = document.getElementById('eventList');
+      const noEv = document.getElementById('noEvents');
+      const countEl = document.getElementById('eventCount');
+      const banner = document.getElementById('priorityBanner');
+      const forSec = document.getElementById('foraneosSection');
+      const fesSec = document.getElementById('festivalSection');
+
+      cont.innerHTML = '';
+      forSec.classList.add('hidden');
+      fesSec.classList.add('hidden');
+      banner.classList.add('hidden');
+
+      if (currentFilter === 'foraneo') {
+        noEv.classList.add('hidden');
+        forSec.classList.remove('hidden');
+        renderForaneos();
+        countEl.textContent = [...FORANEO_IDS].length + ' eventos nacionales';
+        return;
+      }
+      if (currentFilter === 'festival') {
+        noEv.classList.add('hidden');
+        fesSec.classList.remove('hidden');
+        countEl.textContent = FESTIVALS.length + ' festivales';
+        return;
+      }
+
+      const dateKey = getDateKey();
+
+      // Mostrar spinner de carga si no está en caché en memoria
+      const hasLocalCache = fetchedEventsByDate[dateKey] && Array.isArray(fetchedEventsByDate[dateKey]) && fetchedEventsByDate[dateKey].length > 0;
+      if (!hasLocalCache) {
+        cont.innerHTML = `
+          <div class="flex flex-col items-center justify-center py-16 text-gray-400">
+            <div class="animate-spin rounded-full h-8 w-8 border-2 border-purple-600 border-t-transparent mb-3"></div>
+            <p class="text-sm font-medium">Buscando eventos en vivo para este día...</p>
+          </div>
+        `;
+        noEv.classList.add('hidden');
+      }
+
+      // Ejecutar la cascada de búsqueda
+      await fetchEvents(dateKey);
+
+      // Prevenir condición de carrera si el usuario cambió de fecha mientras se realizaba el fetch
+      if (dateKey !== getDateKey()) return;
+
+      cont.innerHTML = '';
+
+      // Si se activó el fallback absoluto, mostrar una alerta discreta con detalle del error
+      if (fallbackActiveForDate[dateKey]) {
+        const alertDiv = document.createElement('div');
+        alertDiv.className = "mb-3 rounded-2xl p-3 text-xs bg-amber-50 border border-amber-200 text-amber-800 leading-normal";
+        alertDiv.innerHTML = `⚠️ <strong>Mostrando eventos de respaldo estáticos.</strong> Configura tu 🔑 Gemini API Key en el header o sube la app a Vercel para buscar eventos en tiempo real en internet.<br><span class="text-red-700 font-semibold block mt-1.5">Detalle del error: ${lastFetchError || 'Ninguno especificado'}</span>`;
+        cont.appendChild(alertDiv);
+      }
+
+      const evs = getFilteredEvents();
+
+      if (evs.length === 0) {
+        noEv.classList.remove('hidden');
+        countEl.textContent = '0 eventos';
+        return;
+      }
+      noEv.classList.add('hidden');
+      countEl.textContent = evs.length + ' evento' + (evs.length !== 1 ? 's' : '');
+
+      if (currentFilter === 'all' && evs.some(e => e.priority && !e.isWildcard))
+        banner.classList.remove('hidden');
+
+      const plan = getPlan();
+      evs.forEach((ev, i) => {
+        const d = document.createElement('div');
+        d.innerHTML = buildCard(ev, plan.includes(ev.id));
+        const card = d.firstElementChild;
+        card.classList.add('card-enter');
+        card.style.animationDelay = i * 0.03 + 's';
+        cont.appendChild(card);
+      });
+
+      // Refrescar panel de plan para actualizar costes y detalles
+      renderPlanUI();
+    }
+
+    // ── Helpers de tarjeta ────────────────────────────────
+    function cardClass(inst) {
+      return {
+        IPN: 'card-ipn', UNAM: 'card-unam', Premium: 'card-premium',
+        Gobierno: 'card-gobierno', Independiente: 'card-independiente'
+      }[inst] || 'card-gobierno';
+    }
+    function instBadge(inst) {
+      const m = {
+        IPN: { c: 'badge-ipn', e: '🦅' }, UNAM: { c: 'badge-unam', e: '🦁' },
+        Premium: { c: 'badge-premium', e: '✨' }, Gobierno: { c: 'badge-gobierno', e: '🏛️' },
+        Independiente: { c: 'badge-independiente', e: '🎭' }
+      };
+      const x = m[inst] || m.Gobierno;
+      return `<span class="badge ${x.c}">${x.e} ${inst}</span>`;
+    }
+    function netSpan(n) {
+      const m = { Alto: 'net-high 🔥 Alto', Medio: 'net-med 👋 Medio', Bajo: 'net-low 😌 Bajo' };
+      const c = { Alto: 'net-high', Medio: 'net-med', Bajo: 'net-low' };
+      return `<span class="${c[n] || 'net-low'}">${m[n] || n}</span>`;
+    }
+    function calUrl(ev) {
+      const dp = getDateKey(), d = dp.replace(/-/g, '');
+      const st = ev.time === 'Flexible' ? '100000' : ev.time.replace(':', '') + '00';
+      const et = ev.endTime === 'Flexible' ? '200000' : ev.endTime.replace(':', '') + '00';
+      const p = new URLSearchParams({ action: 'TEMPLATE', text: ev.title, dates: `${d}T${st}/${d}T${et}`, details: ev.desc, location: ev.address });
+      return `https://calendar.google.com/calendar/render?${p}`;
+    }
+
+    function buildCard(ev, inPlan) {
+      const isFav = favorites.has(ev.id);
+      return `
   <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden ${cardClass(ev.inst)} hover:shadow-md transition-shadow">
     <div class="px-4 pt-4 pb-3 border-b border-gray-50">
       <div class="flex flex-wrap gap-1.5 mb-2">
         ${instBadge(ev.inst)}
-        ${ev.priority&&!ev.isWildcard?'<span class="badge badge-priority">🔴 Solo hoy</span>':''}
-        ${ev.isWildcard?'<span class="badge badge-wildcard">⚡ Comodín</span>':''}
-        ${ev.costVal===0?'<span class="badge badge-free">🟢 Gratis</span>':''}
-        ${ev.petFriendly?'<span class="badge badge-pet">🐾 Pet-Friendly</span>':''}
+        ${ev.priority && !ev.isWildcard ? '<span class="badge badge-priority">🔴 Solo hoy</span>' : ''}
+        ${ev.isWildcard ? '<span class="badge badge-wildcard">⚡ Comodín</span>' : ''}
+        ${ev.costVal === 0 ? '<span class="badge badge-free">🟢 Gratis</span>' : ''}
+        ${ev.petFriendly ? '<span class="badge badge-pet">🐾 Pet-Friendly</span>' : ''}
       </div>
       ${datePill(ev)}
       <div class="flex items-start justify-between gap-2">
@@ -1182,8 +1909,8 @@ function buildCard(ev, inPlan) {
           <p class="text-sm text-gray-500 mt-0.5">📍 ${ev.location} · <span class="text-gray-400">${ev.neighborhood}</span></p>
         </div>
         <div class="text-right shrink-0 ml-2">
-          <div class="text-base font-bold text-guinda whitespace-nowrap">${ev.time==='Flexible'?'🕐 Flexible':ev.time}</div>
-          ${ev.endTime!=='Flexible'&&ev.time!=='Flexible'?`<div class="text-xs text-gray-400">hasta ${ev.endTime}</div>`:''}
+          <div class="text-base font-bold text-guinda whitespace-nowrap">${ev.time === 'Flexible' ? '🕐 Flexible' : ev.time}</div>
+          ${ev.endTime !== 'Flexible' && ev.time !== 'Flexible' ? `<div class="text-xs text-gray-400">hasta ${ev.endTime}</div>` : ''}
         </div>
       </div>
     </div>
@@ -1195,39 +1922,43 @@ function buildCard(ev, inPlan) {
         <div>👗 ${ev.attire}</div>
         <div>🎫 ${ev.booking.split('·')[0].trim()}</div>
       </div>
-      ${ev.link?`<a href="${ev.link}" target="_blank" class="text-xs text-blue-500 hover:underline block mb-3">🔗 Sitio oficial</a>`:''}
+      ${ev.link ? `<a href="${ev.link}" target="_blank" class="text-xs text-blue-500 hover:underline block mb-3">🔗 Sitio oficial</a>` : ''}
       <div class="flex flex-wrap gap-2">
         <a href="${mapsUrl(ev)}" target="_blank" class="btn-sm btn-map">🗺️ Maps</a>
         <a href="${wazeUrl(ev)}" target="_blank" class="btn-sm btn-waze">🔶 Waze</a>
         <a href="${calUrl(ev)}" target="_blank" class="btn-sm btn-cal">📅 Guardar</a>
         <button onclick="togglePlan('${ev.id}')" id="addBtn_${ev.id}"
-          class="btn-sm btn-add" ${inPlan?'disabled style="background:#6b7280"':''}>
-          ${inPlan?'✓ En el plan':'➕ Al Plan'}
+          class="btn-sm btn-add" ${inPlan ? 'disabled style="background:#6b7280"' : ''}>
+          ${inPlan ? '✓ En el plan' : '➕ Al Plan'}
         </button>
         <button onclick="toggleFav('${ev.id}')" id="favBtn_${ev.id}"
-          class="btn-sm btn-fav ${isFav?'active':''}" title="${isFav?'Quitar favorito':'Marcar favorito'}">
-          ${isFav?'❤️':'🤍'}
+          class="btn-sm btn-fav ${isFav ? 'active' : ''}" title="${isFav ? 'Quitar favorito' : 'Marcar favorito'}">
+          ${isFav ? '❤️' : '🤍'}
+        </button>
+        <button onclick="substituteEvent('${ev.id}')" id="subBtn_${ev.id}"
+          class="btn-sm bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100" title="Sustituir por otro evento similar">
+          🔄 Sustituir
         </button>
       </div>
     </div>
   </div>`;
-}
+    }
 
-// ══════════════════════════════════════════════════════
-// FESTIVALES
-// ══════════════════════════════════════════════════════
-function renderFestivales() {
-  const cont = document.getElementById('festivalListMain');
-  if (!cont) return;
-  cont.innerHTML = FESTIVALS.map(f => {
-    const isFav = favorites.has(f.id);
-    return `
+    // ══════════════════════════════════════════════════════
+    // FESTIVALES
+    // ══════════════════════════════════════════════════════
+    function renderFestivales() {
+      const cont = document.getElementById('festivalListMain');
+      if (!cont) return;
+      cont.innerHTML = FESTIVALS.map(f => {
+        const isFav = favorites.has(f.id);
+        return `
     <div class="bg-white rounded-2xl shadow-sm border border-purple-100 overflow-hidden card-festival hover:shadow-md transition-shadow">
       <div class="px-4 pt-4 pb-3 border-b border-gray-50">
         <div class="flex flex-wrap gap-1.5 mb-2">
           <span class="badge badge-festival">🎪 ${f.cat}</span>
           <span class="badge" style="background:#f0fdf4;color:#166534;border:1px solid #86efac;">📅 ${f.months}</span>
-          ${f.tags.map(t=>`<span class="badge" style="background:#f5f3ff;color:#5b21b6;border:1px solid #ddd6fe;">${t}</span>`).join('')}
+          ${f.tags.map(t => `<span class="badge" style="background:#f5f3ff;color:#5b21b6;border:1px solid #ddd6fe;">${t}</span>`).join('')}
         </div>
         <div class="flex items-start justify-between gap-2">
           <div>
@@ -1235,24 +1966,24 @@ function renderFestivales() {
             <p class="text-sm text-gray-500 mt-0.5">📍 ${f.city} · <span class="text-purple-600 font-medium">${f.freq}</span></p>
           </div>
           <button onclick="toggleFav('${f.id}')" id="favBtn_${f.id}"
-            class="btn-sm btn-fav shrink-0 ${isFav?'active':''}" title="Seguir festival">
-            ${isFav?'❤️ Siguiendo':'🤍 Seguir'}
+            class="btn-sm btn-fav shrink-0 ${isFav ? 'active' : ''}" title="Seguir festival">
+            ${isFav ? '❤️ Siguiendo' : '🤍 Seguir'}
           </button>
         </div>
       </div>
       <div class="px-4 py-3">
         <p class="text-sm text-gray-600 leading-relaxed mb-3">${f.desc}</p>
         <div class="text-xs text-gray-600 mb-2">💰 ${f.cost}</div>
-        ${f.link?`<a href="${f.link}" target="_blank" class="btn-sm btn-map">🔗 Sitio oficial</a>`:''}
+        ${f.link ? `<a href="${f.link}" target="_blank" class="btn-sm btn-map">🔗 Sitio oficial</a>` : ''}
       </div>
     </div>`;
-  }).join('');
-}
+      }).join('');
+    }
 
-function renderForaneos() {
-  const cont = document.getElementById('foraneosListMain');
-  if (!cont) return;
-  cont.innerHTML = FESTIVALS.filter(f=>FORANEO_IDS.has(f.id)).map(f=>`
+    function renderForaneos() {
+      const cont = document.getElementById('foraneosListMain');
+      if (!cont) return;
+      cont.innerHTML = FESTIVALS.filter(f => FORANEO_IDS.has(f.id)).map(f => `
     <div class="bg-white rounded-2xl shadow-sm border border-cyan-100 overflow-hidden card-foraneo hover:shadow-md transition-shadow">
       <div class="px-4 pt-4 pb-3 border-b border-gray-50">
         <div class="flex flex-wrap gap-1.5 mb-2">
@@ -1265,41 +1996,208 @@ function renderForaneos() {
       <div class="px-4 py-3">
         <p class="text-sm text-gray-600 leading-relaxed mb-3">${f.desc}</p>
         <div class="text-xs text-gray-600 mb-2">💰 ${f.cost}</div>
-        ${f.link?`<a href="${f.link}" target="_blank" class="btn-sm btn-map">🔗 Sitio oficial</a>`:''}
+        ${f.link ? `<a href="${f.link}" target="_blank" class="btn-sm btn-map">🔗 Sitio oficial</a>` : ''}
       </div>
     </div>`).join('');
-}
+    }
 
-// ══════════════════════════════════════════════════════
-// FAVORITOS
-// ══════════════════════════════════════════════════════
-function toggleFav(id) {
-  if (favorites.has(id)) favorites.delete(id); else favorites.add(id);
-  saveFavsLocal();
-  syncCloud();
-  const btn = document.getElementById('favBtn_' + id);
-  if (btn) {
-    const isFav = favorites.has(id);
-    const isFestival = FESTIVALS.some(f => f.id === id);
-    btn.textContent  = isFestival ? (isFav ? '❤️ Siguiendo' : '🤍 Seguir') : (isFav ? '❤️' : '🤍');
-    btn.classList.toggle('active', isFav);
-  }
-  renderFavPanel();
-}
+    // ══════════════════════════════════════════════════════
+    // FAVORITOS
+    // ══════════════════════════════════════════════════════
+    function toggleFav(id) {
+      if (favorites.has(id)) favorites.delete(id); else favorites.add(id);
+      saveFavsLocal();
+      syncCloud();
+      const btn = document.getElementById('favBtn_' + id);
+      if (btn) {
+        const isFav = favorites.has(id);
+        const isFestival = FESTIVALS.some(f => f.id === id);
+        btn.textContent = isFestival ? (isFav ? '❤️ Siguiendo' : '🤍 Seguir') : (isFav ? '❤️' : '🤍');
+        btn.classList.toggle('active', isFav);
+      }
+      renderFavPanel();
+    }
 
-function renderFavPanel() {
-  const cont = document.getElementById('favPanel');
-  const allFavItems = [...favorites].map(id => {
-    const ev = CDMX_EVENTS.find(e => e.id === id);
-    const fe = FESTIVALS.find(f => f.id === id);
-    return ev || fe;
-  }).filter(Boolean);
+    /**
+     * Sustituye un evento específico de la cartelera del día por una alternativa real.
+     * Realiza una llamada a la API (o directo a Gemini si hay fallback local) solicitando un reemplazo.
+     * Migra automáticamente las selecciones de favoritos e itinerario al nuevo evento sugerido.
+     */
+    async function substituteEvent(id) {
+      const btn = document.getElementById('subBtn_' + id);
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = '🔄 Buscando...';
+      }
 
-  if (allFavItems.length === 0) {
-    cont.innerHTML = '<p class="text-xs text-gray-400 text-center py-2">Dale ❤️ a cualquier evento o festival</p>';
-    return;
-  }
-  cont.innerHTML = allFavItems.map(item => `
+      const dateKey = getDateKey();
+
+      // Buscar los detalles del evento que deseamos sustituir en la lista conocida de eventos
+      const targetEvent = CDMX_EVENTS.find(e => e.id === id) || knownEvents[id];
+      if (!targetEvent) {
+        alert('No se pudieron recuperar los detalles del evento a sustituir.');
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = '🔄 Sustituir';
+        }
+        return;
+      }
+
+      // Inicializar el arreglo de eventos dinámicos para este día si aún no se ha creado
+      // (por ejemplo, si estamos viendo los eventos estáticos predeterminados de CDMX_EVENTS)
+      if (!fetchedEventsByDate[dateKey] || !Array.isArray(fetchedEventsByDate[dateKey]) || fetchedEventsByDate[dateKey].length === 0) {
+        // Clonar la cartelera estática del día para poder realizar la sustitución local
+        const dateObj = new Date(dateKey + 'T12:00:00');
+        const day = dateObj.getDay();
+        const month = dateObj.getMonth() + 1;
+        fetchedEventsByDate[dateKey] = CDMX_EVENTS.filter(e => eventApplies(e, day, month));
+        fallbackActiveForDate[dateKey] = false; // Marcar como activo dinámico para poder redibujar
+      }
+
+      const key = document.getElementById('geminiKey') ? document.getElementById('geminiKey').value.trim() : '';
+      let alternativeEvent = null;
+
+      // 1. Intentar consultar el endpoint local del servidor en Vercel pasándole los detalles de sustitución
+      try {
+        const headers = {};
+        if (key) headers['x-gemini-key'] = key;
+        const res = await fetch(`/api/get-events?date=${dateKey}&substituteFor=${encodeURIComponent(targetEvent.title)}&location=${encodeURIComponent(targetEvent.location)}`, { headers });
+        if (res.ok) {
+          const result = await res.json();
+          if (result && Array.isArray(result) && result.length > 0) {
+            alternativeEvent = result[0];
+          }
+        }
+      } catch (err) {
+        console.warn('Fallo de conexión en sustitución con Vercel. Intentando fallback local...', err);
+      }
+
+      // 2. Fallback: Llamar directamente a la API de Gemini si el cliente configuró una clave
+      if (!alternativeEvent && key) {
+        try {
+          console.log('Sustituyendo evento con llamada directa a Gemini...');
+          const prompt = `Busca en internet un evento alternativo real y activo que ocurra el día ${dateKey} en la Ciudad de México (CDMX) para sustituir al evento "${targetEvent.title}" (que originalmente se realiza en "${targetEvent.location}"). 
+El nuevo evento sugerido debe ser de la misma categoría o estar ubicado en una zona cercana, y tener un perfil de interés similar.
+Devuelve los resultados obligatoriamente como un arreglo JSON válido con un único objeto de evento (debiendo comenzar con [ y terminar con ]), y absolutamente NADA más (sin explicaciones, sin texto adicional, sin formato markdown). El objeto debe tener los siguientes campos exactos y estructurados:
+- id: un string único corto (ej. 'live_alt_' + número aleatorio o correlativo)
+- time: string formato de 24 horas 'HH:MM' o 'Flexible'
+- endTime: string formato de 24 horas 'HH:MM' o 'Flexible'
+- title: nombre completo del evento alternativo sugerido
+- location: nombre del lugar o recinto real
+- neighborhood: zona o colonia
+- address: dirección física completa en CDMX
+- lat: latitud aproximada (número decimal o null)
+- lng: longitud aproximada (número decimal o null)
+- dateInfo: texto legible de la fecha y hora
+- dateType: 'permanent' | 'seasonal' | 'oneoff' | 'weekly'
+- inst: tipo de institución organizadora (elige entre: 'IPN' | 'UNAM' | 'Premium' | 'Gobierno' | 'Independiente')
+- cost: texto descriptivo del costo
+- costVal: valor numérico del costo mínimo (entero o 0)
+- booking: información breve de venta de boletos o reservación
+- attire: tipo de vestimenta sugerida con emoji
+- net: nivel estimado de networking (elige entre: 'Bajo' | 'Medio' | 'Alto')
+- cat: categoría principal (elige entre: 'Arte' | 'Música' | 'Cine' | 'Bazar' | 'Ciencia' | 'Social' | 'Gastronomía' | 'Naturaleza')
+- petFriendly: boolean (true o false)
+- isWildcard: boolean (true si es flexible en día, false si es de fecha fija)
+- priority: boolean (true si es muy relevante o un solo día, false en caso contrario)
+- link: URL oficial o de boletera (o null)
+- desc: descripción amena y detallada del evento de 2 a 3 oraciones en español.
+
+IMPORTANTE: Todos los valores de texto (strings) dentro del JSON deben usar comillas dobles externas. Si dentro del texto necesitas incluir comillas o citar algo, usa comillas simples (') y NUNCA comillas dobles ("), para evitar romper el formato JSON y que sea directamente parseable con JSON.parse.`;
+
+          const text = await callGeminiApiWithFallback(prompt, key, { googleSearch: true });
+          if (text) {
+            let cleanedText = text.trim();
+            const startIdx = cleanedText.indexOf('[');
+            const endIdx = cleanedText.lastIndexOf(']');
+            if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
+              cleanedText = cleanedText.substring(startIdx, endIdx + 1);
+            } else {
+              if (cleanedText.startsWith('```json')) {
+                cleanedText = cleanedText.substring(7, cleanedText.length - 3).trim();
+              } else if (cleanedText.startsWith('```')) {
+                cleanedText = cleanedText.substring(3, cleanedText.length - 3).trim();
+              }
+            }
+            // Sanitizar comas sobrantes al final de listas u objetos (trailing commas)
+            cleanedText = cleanedText.replace(/,(\s*[\]}])/g, '$1');
+            const result = JSON.parse(cleanedText);
+            if (result && Array.isArray(result) && result.length > 0) {
+              alternativeEvent = result[0];
+            }
+          }
+        } catch (directErr) {
+          console.warn('Error en llamada directa a Gemini para sustitución:', directErr);
+        }
+      }
+
+      // 3. Procesar el evento alternativo encontrado
+      if (alternativeEvent && alternativeEvent.title) {
+        // Buscar el índice del evento original en la lista dinámica de este día
+        const list = fetchedEventsByDate[dateKey];
+        const idx = list.findIndex(e => e.id === id);
+
+        if (idx !== -1) {
+          // Reemplazar el evento viejo por el nuevo
+          list[idx] = alternativeEvent;
+        } else {
+          // Si por alguna razón no estaba en la lista dinámica, agregarlo al final
+          list.push(alternativeEvent);
+        }
+
+        // Registrar el nuevo evento en el diccionario global para poder resolver sus detalles en el futuro
+        knownEvents[alternativeEvent.id] = alternativeEvent;
+        saveKnownEventsLocal();
+        saveFetchedEventsLocal();
+
+        // Guardar el listado actualizado en Firestore para beneficio de otros usuarios si la nube está activa
+        if (window.CloudDB && window.CloudDB.enabled()) {
+          await window.CloudDB.saveCachedEvents(dateKey, list);
+        }
+
+        // 4. Migrar automáticamente los planes y favoritos del usuario al nuevo evento
+        // Actualizar el itinerario si el evento sustituido estaba agregado al plan del día
+        const plan = plansByDate[dateKey] || [];
+        const planIdx = plan.indexOf(id);
+        if (planIdx !== -1) {
+          plan[planIdx] = alternativeEvent.id;
+          savePlansLocal();
+        }
+
+        // Actualizar los favoritos si el evento sustituido estaba marcado como favorito
+        if (favorites.has(id)) {
+          favorites.delete(id);
+          favorites.add(alternativeEvent.id);
+          saveFavsLocal();
+        }
+
+        // Sincronizar cambios de planes y favoritos en la nube
+        syncCloud();
+
+        // Redibujar la interfaz completa
+        renderAll();
+      } else {
+        alert('No se pudo encontrar un evento alternativo para este recinto o fecha. Inténtalo más tarde.');
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = '🔄 Sustituir';
+        }
+      }
+    }
+
+    function renderFavPanel() {
+      const cont = document.getElementById('favPanel');
+      const allFavItems = [...favorites].map(id => {
+        const ev = CDMX_EVENTS.find(e => e.id === id) || knownEvents[id];
+        const fe = FESTIVALS.find(f => f.id === id);
+        return ev || fe;
+      }).filter(Boolean);
+
+      if (allFavItems.length === 0) {
+        cont.innerHTML = '<p class="text-xs text-gray-400 text-center py-2">Dale ❤️ a cualquier evento o festival</p>';
+        return;
+      }
+      cont.innerHTML = allFavItems.map(item => `
     <div class="flex items-start justify-between gap-2 py-2 border-b border-gray-50 last:border-0">
       <div class="flex-1 min-w-0">
         <p class="text-sm font-semibold text-gray-800 leading-tight truncate">${item.title}</p>
@@ -1307,216 +2205,205 @@ function renderFavPanel() {
       </div>
       <button onclick="toggleFav('${item.id}')" class="text-red-300 hover:text-red-500 shrink-0 text-lg">✕</button>
     </div>`).join('');
-}
+    }
 
-// ══════════════════════════════════════════════════════
-// PLAN
-// ══════════════════════════════════════════════════════
-function togglePlan(id) {
-  const k = getDateKey();
-  if (!plansByDate[k]) plansByDate[k] = [];
-  if (plansByDate[k].includes(id)) return;
-  plansByDate[k].push(id);
-  savePlansLocal();
-  syncCloud();
-  renderPlanUI();
-  const btn = document.getElementById('addBtn_' + id);
-  if (btn) { btn.textContent = '✓ En el plan'; btn.disabled = true; btn.style.background = '#6b7280'; }
-}
+    // ══════════════════════════════════════════════════════
+    // PLAN
+    // ══════════════════════════════════════════════════════
+    function togglePlan(id) {
+      const k = getDateKey();
+      if (!plansByDate[k]) plansByDate[k] = [];
+      if (plansByDate[k].includes(id)) return;
+      plansByDate[k].push(id);
+      savePlansLocal();
+      syncCloud();
+      renderPlanUI();
+      const btn = document.getElementById('addBtn_' + id);
+      if (btn) { btn.textContent = '✓ En el plan'; btn.disabled = true; btn.style.background = '#6b7280'; }
+    }
 
-function removeFromPlan(id) {
-  const k = getDateKey();
-  if (!plansByDate[k]) return;
-  plansByDate[k] = plansByDate[k].filter(i => i !== id);
-  savePlansLocal();
-  syncCloud();
-  renderPlanUI();
-  const btn = document.getElementById('addBtn_' + id);
-  if (btn) { btn.textContent = '➕ Al Plan'; btn.disabled = false; btn.style.background = ''; }
-}
+    function removeFromPlan(id) {
+      const k = getDateKey();
+      if (!plansByDate[k]) return;
+      plansByDate[k] = plansByDate[k].filter(i => i !== id);
+      savePlansLocal();
+      syncCloud();
+      renderPlanUI();
+      const btn = document.getElementById('addBtn_' + id);
+      if (btn) { btn.textContent = '➕ Al Plan'; btn.disabled = false; btn.style.background = ''; }
+    }
 
-function clearPlan() {
-  const k = getDateKey();
-  const ids = plansByDate[k] || [];
-  plansByDate[k] = [];
-  savePlansLocal();
-  syncCloud();
-  ids.forEach(id => {
-    const btn = document.getElementById('addBtn_' + id);
-    if (btn) { btn.textContent = '➕ Al Plan'; btn.disabled = false; btn.style.background = ''; }
-  });
-  renderPlanUI();
-}
+    function clearPlan() {
+      const k = getDateKey();
+      const ids = plansByDate[k] || [];
+      plansByDate[k] = [];
+      savePlansLocal();
+      syncCloud();
+      ids.forEach(id => {
+        const btn = document.getElementById('addBtn_' + id);
+        if (btn) { btn.textContent = '➕ Al Plan'; btn.disabled = false; btn.style.background = ''; }
+      });
+      renderPlanUI();
+    }
 
-function renderPlanUI() {
-  const plan = getPlan();
-  const evs  = plan.map(id => CDMX_EVENTS.find(e => e.id === id)).filter(Boolean);
-  const sorted = [...evs].sort((a,b) => {
-    if (a.time==='Flexible' && b.time!=='Flexible') return 1;
-    if (a.time!=='Flexible' && b.time==='Flexible') return -1;
-    return a.time.localeCompare(b.time);
-  });
+    function renderPlanUI() {
+      const plan = getPlan();
+      const evs = plan.map(id => CDMX_EVENTS.find(e => e.id === id) || knownEvents[id]).filter(Boolean);
+      const sorted = [...evs].sort((a, b) => {
+        if (a.time === 'Flexible' && b.time !== 'Flexible') return 1;
+        if (a.time !== 'Flexible' && b.time === 'Flexible') return -1;
+        return (a.time || '').localeCompare(b.time || '');
+      });
 
-  document.getElementById('statCount').textContent = evs.length;
-  document.getElementById('statCost').textContent  = '$' + evs.reduce((s,e)=>s+e.costVal,0);
-  document.getElementById('statPet').textContent   = evs.filter(e=>e.petFriendly).length;
+      document.getElementById('statCount').textContent = evs.length;
+      document.getElementById('statCost').textContent = '$' + evs.reduce((s, e) => s + (parseInt(e.costVal) || 0), 0);
+      document.getElementById('statPet').textContent = evs.filter(e => e.petFriendly).length;
 
-  const cont    = document.getElementById('planItems');
-  const empty   = document.getElementById('planEmpty');
-  const actions = document.getElementById('planActions');
-  cont.innerHTML = '';
+      const cont = document.getElementById('planItems');
+      const empty = document.getElementById('planEmpty');
+      const actions = document.getElementById('planActions');
+      cont.innerHTML = '';
 
-  if (evs.length === 0) { empty.style.display='block'; actions.classList.add('hidden'); return; }
-  empty.style.display = 'none'; actions.classList.remove('hidden');
+      if (evs.length === 0) { empty.style.display = 'block'; actions.classList.add('hidden'); return; }
+      empty.style.display = 'none'; actions.classList.remove('hidden');
 
-  sorted.forEach(ev => {
-    const d = document.createElement('div');
-    d.className = 'plan-item';
-    d.innerHTML = `
+      sorted.forEach(ev => {
+        const d = document.createElement('div');
+        d.className = 'plan-item';
+        d.innerHTML = `
       <div class="flex items-start justify-between gap-2">
         <div class="flex-1 min-w-0">
-          <p class="text-xs font-bold text-guinda">${ev.time==='Flexible'?'Flexible':ev.time+(ev.endTime!=='Flexible'?' – '+ev.endTime:'')}</p>
+          <p class="text-xs font-bold text-guinda">${ev.time === 'Flexible' ? 'Flexible' : ev.time + (ev.endTime !== 'Flexible' ? ' – ' + ev.endTime : '')}</p>
           <p class="text-sm font-semibold text-gray-800 leading-tight mt-0.5 truncate">${ev.title}</p>
           <p class="text-xs text-gray-400 mt-0.5">${ev.neighborhood}</p>
         </div>
         <button onclick="removeFromPlan('${ev.id}')" class="text-gray-300 hover:text-red-400 shrink-0 text-lg leading-none">✕</button>
       </div>`;
-    cont.appendChild(d);
-  });
-}
+        cont.appendChild(d);
+      });
+    }
 
-function updatePlanDate() {
-  const dp = document.getElementById('datePicker').value;
-  const d  = new Date(dp + 'T12:00:00');
-  document.getElementById('planDate').textContent =
-    d.toLocaleDateString('es-MX', {weekday:'long',year:'numeric',month:'long',day:'numeric'});
-}
+    function updatePlanDate() {
+      const dp = document.getElementById('datePicker').value;
+      const d = new Date(dp + 'T12:00:00');
+      document.getElementById('planDate').textContent =
+        d.toLocaleDateString('es-MX', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    }
 
-// ══════════════════════════════════════════════════════
-// ICAL EXPORT
-// ══════════════════════════════════════════════════════
-function exportIcal() {
-  const plan = getPlan();
-  if (plan.length === 0) { alert('Agrega al menos un evento al plan primero.'); return; }
-  const dp  = getDateKey();
-  const evs = plan.map(id => CDMX_EVENTS.find(e=>e.id===id)).filter(Boolean);
+    // ══════════════════════════════════════════════════════
+    // ICAL EXPORT
+    // ══════════════════════════════════════════════════════
+    function exportIcal() {
+      const plan = getPlan();
+      if (plan.length === 0) { alert('Agrega al menos un evento al plan primero.'); return; }
+      const dp = getDateKey();
+      const evs = plan.map(id => CDMX_EVENTS.find(e => e.id === id) || knownEvents[id]).filter(Boolean);
 
-  function dt(t, isEnd) {
-    const d = dp.replace(/-/g,'');
-    const time = t==='Flexible' ? (isEnd?'200000':'100000') : t.replace(':','')+'00';
-    return `${d}T${time}`;
-  }
+      function dt(t, isEnd) {
+        const d = dp.replace(/-/g, '');
+        const time = t === 'Flexible' ? (isEnd ? '200000' : '100000') : t.replace(':', '') + '00';
+        return `${d}T${time}`;
+      }
 
-  const lines = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//AgendaCDMX//IPN//ES',
-    'CALSCALE:GREGORIAN','METHOD:PUBLISH','X-WR-CALNAME:Mi Plan CDMX',
-    'X-WR-TIMEZONE:America/Mexico_City'];
+      const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//AgendaCDMX//IPN//ES',
+        'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', 'X-WR-CALNAME:Mi Plan CDMX',
+        'X-WR-TIMEZONE:America/Mexico_City'];
 
-  evs.forEach(ev => {
-    lines.push('BEGIN:VEVENT',
-      `UID:${ev.id}-${dp}@agendacdmx`,
-      `DTSTAMP:${new Date().toISOString().replace(/[-:.]/g,'').slice(0,15)}Z`,
-      `DTSTART;TZID=America/Mexico_City:${dt(ev.time,false)}`,
-      `DTEND;TZID=America/Mexico_City:${dt(ev.endTime,true)}`,
-      `SUMMARY:${ev.title.replace(/,/g,'\\,')}`,
-      `DESCRIPTION:${ev.desc.replace(/[\r\n]/g,' ').replace(/,/g,'\\,')}`,
-      `LOCATION:${ev.address.replace(/,/g,'\\,')}`,
-      'END:VEVENT');
-  });
-  lines.push('END:VCALENDAR');
+      evs.forEach(ev => {
+        lines.push('BEGIN:VEVENT',
+          `UID:${ev.id}-${dp}@agendacdmx`,
+          `DTSTAMP:${new Date().toISOString().replace(/[-:.]/g, '').slice(0, 15)}Z`,
+          `DTSTART;TZID=America/Mexico_City:${dt(ev.time, false)}`,
+          `DTEND;TZID=America/Mexico_City:${dt(ev.endTime, true)}`,
+          `SUMMARY:${ev.title.replace(/,/g, '\\,')}`,
+          `DESCRIPTION:${ev.desc.replace(/[\r\n]/g, ' ').replace(/,/g, '\\,')}`,
+          `LOCATION:${ev.address.replace(/,/g, '\\,')}`,
+          'END:VEVENT');
+      });
+      lines.push('END:VCALENDAR');
 
-  const blob = new Blob([lines.join('\r\n')], {type:'text/calendar;charset=utf-8'});
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href = url; a.download = `plan-cdmx-${dp}.ics`;
-  document.body.appendChild(a); a.click();
-  setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 1000);
-}
+      const blob = new Blob([lines.join('\r\n')], { type: 'text/calendar;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `plan-cdmx-${dp}.ics`;
+      document.body.appendChild(a); a.click();
+      setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 1000);
+    }
 
-// ══════════════════════════════════════════════════════
-// GEMINI
-// ══════════════════════════════════════════════════════
-async function askGemini() {
-  const key = document.getElementById('geminiKey').value.trim();
-  const el  = document.getElementById('geminiResponse');
-  el.classList.remove('hidden');
+    // ══════════════════════════════════════════════════════
+    // GEMINI
+    // ══════════════════════════════════════════════════════
+    async function askGemini() {
+      const key = document.getElementById('geminiKey').value.trim();
+      const el = document.getElementById('geminiResponse');
+      el.classList.remove('hidden');
 
-  if (!key) {
-    el.innerHTML = `⚠️ Ingresa tu API Key de Gemini en el encabezado.<br>
+      if (!key) {
+        el.innerHTML = `⚠️ Ingresa tu API Key de Gemini en el encabezado.<br>
       <small>La IA funciona una vez que subas la app a <strong>Vercel</strong> (dominio HTTPS).<br>
       Obtén tu key gratis en <a href="https://aistudio.google.com" target="_blank" style="color:#6d28d9;text-decoration:underline">aistudio.google.com</a></small>`;
-    return;
-  }
-
-  const plan = getPlan().map(id=>CDMX_EVENTS.find(e=>e.id===id)).filter(Boolean);
-  const dp   = getDateKey();
-  const summary = plan.length > 0
-    ? plan.map(e=>`${e.time!=='Flexible'?e.time:'flexible'} — ${e.title} (${e.neighborhood})`).join('; ')
-    : 'Sin eventos en el plan todavía';
-
-  const prompt = `Eres un guía cultural experto de Ciudad de México con especial cariño por el IPN. El usuario tiene planeado para el ${dp}: ${summary}. Da una recomendación breve (máx 3 oraciones, tono amigable y entusiasta): complementos gastronómicos o culturales cercanos, orden sugerido de visita, o qué no perderse. Sé específico con nombres reales de lugares en CDMX.`;
-
-  el.textContent = '✨ Consultando a Gemini…';
-
-  try {
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,
-      { method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ contents:[{parts:[{text:prompt}]}], generationConfig:{maxOutputTokens:300,temperature:0.7} })
+        return;
       }
-    );
-    if (!res.ok) {
-      const err = await res.json().catch(()=>({}));
-      const msg = err?.error?.message || res.statusText;
-      if (msg.includes('API_KEY') || res.status === 400)
-        el.innerHTML = `❌ <strong>API Key inválida o sin permisos.</strong><br><small>Verifica tu key en <a href="https://aistudio.google.com" target="_blank" style="color:#6d28d9;text-decoration:underline">aistudio.google.com</a></small>`;
-      else if (res.status === 429)
-        el.textContent = '⏳ Límite de solicitudes alcanzado. Espera un momento e intenta de nuevo.';
-      else
-        el.textContent = `❌ Error ${res.status}: ${msg}`;
-      return;
+
+      const plan = getPlan().map(id => CDMX_EVENTS.find(e => e.id === id) || knownEvents[id]).filter(Boolean);
+      const dp = getDateKey();
+      const summary = plan.length > 0
+        ? plan.map(e => `${e.time !== 'Flexible' ? e.time : 'flexible'} — ${e.title} (${e.neighborhood})`).join('; ')
+        : 'Sin eventos en el plan todavía';
+
+      const prompt = `Eres un guía cultural experto de Ciudad de México con especial cariño por el IPN. El usuario tiene planeado para el ${dp}: ${summary}. Da una recomendación breve (máx 10 oraciones, tono amigable y entusiasta): complementos gastronómicos o culturales cercanos, orden sugerido de visita, o qué no perderse. Sé específico con nombres reales de lugares en CDMX.`;
+
+      el.textContent = '✨ Consultando a Gemini…';
+
+      try {
+        const text = await callGeminiApiWithFallback(prompt, key, {
+          generationConfig: { maxOutputTokens: 900, temperature: 0.7 }
+        });
+        el.textContent = text ? ('🤖 ' + text) : '❌ Respuesta vacía de Gemini.';
+      } catch (err) {
+        if (err.status === 400 || err.status === 401 || err.status === 403 || (err.message && (err.message.includes('API_KEY') || err.message.includes('key'))))
+          el.innerHTML = `❌ <strong>API Key inválida o sin permisos.</strong><br><small>Verifica tu key en <a href="https://aistudio.google.com" target="_blank" style="color:#6d28d9;text-decoration:underline">aistudio.google.com</a></small>`;
+        else if (err.status === 429)
+          el.textContent = '⏳ Límite de solicitudes alcanzado. Espera un momento e intenta de nuevo.';
+        else if (err.message && (err.message.includes('fetch') || err.message.includes('Failed')))
+          el.innerHTML = `❌ <strong>Error CORS / red o API caída.</strong><br>
+        La API de Gemini puede bloquearse por CORS desde localhost en llamadas directas (debes subir la app a Vercel) o tener problemas de conexión.<br>
+        <strong>Detalle:</strong> ${err.message}`;
+        else
+          el.textContent = '❌ Error: ' + err.message;
+      }
     }
-    const data = await res.json();
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    el.textContent = text ? ('🤖 ' + text) : '❌ Respuesta vacía de Gemini.';
-  } catch(err) {
-    if (err.message.includes('fetch') || err.message.includes('Failed'))
-      el.innerHTML = `❌ <strong>Error CORS / red.</strong><br>
-        La API de Gemini solo funciona desde HTTPS (Vercel). Desde localhost o file:// la bloquea Google por seguridad.<br>
-        <strong>Siguiente paso:</strong> sube la app a Vercel.`;
-    else
-      el.textContent = '❌ Error: ' + err.message;
-  }
-}
 
-// ══════════════════════════════════════════════════════
-// CLOUD MODAL HELPERS
-// ══════════════════════════════════════════════════════
-function copyUserId() {
-  const uid = window.CloudDB ? window.CloudDB.userId() : localStorage.getItem('agendaUserId') || '';
-  navigator.clipboard.writeText(uid).then(() => alert('✅ ID copiado: ' + uid));
-}
-function applyUserId() {
-  const val = document.getElementById('userIdInput').value.trim();
-  if (!val) return;
-  if (window.CloudDB) window.CloudDB.setUserId(val);
-  else localStorage.setItem('agendaUserId', val);
-  document.getElementById('userIdDisplay').textContent = val;
-  loadFromCloud();
-  alert('✅ ID aplicado. Cargando tus datos desde la nube…');
-}
-async function forceSyncCloud() {
-  await syncCloud();
-  alert('✅ Sincronización completada.');
-}
+    // ══════════════════════════════════════════════════════
+    // CLOUD MODAL HELPERS
+    // ══════════════════════════════════════════════════════
+    function copyUserId() {
+      const uid = window.CloudDB ? window.CloudDB.userId() : localStorage.getItem('agendaUserId') || '';
+      navigator.clipboard.writeText(uid).then(() => alert('✅ ID copiado: ' + uid));
+    }
+    function applyUserId() {
+      const val = document.getElementById('userIdInput').value.trim();
+      if (!val) return;
+      if (window.CloudDB) window.CloudDB.setUserId(val);
+      else localStorage.setItem('agendaUserId', val);
+      document.getElementById('userIdDisplay').textContent = val;
+      loadFromCloud();
+      alert('✅ ID aplicado. Cargando tus datos desde la nube…');
+    }
+    async function forceSyncCloud() {
+      await syncCloud();
+      alert('✅ Sincronización completada.');
+    }
 
-// ══════════════════════════════════════════════════════
-// MODAL
-// ══════════════════════════════════════════════════════
-function showModal(id) { document.getElementById(id).classList.remove('hidden'); }
-function hideModal(id) { document.getElementById(id).classList.add('hidden'); }
-document.addEventListener('click', e => {
-  if (e.target.classList.contains('modal-overlay')) e.target.classList.add('hidden');
-});
-</script>
+    // ══════════════════════════════════════════════════════
+    // MODAL
+    // ══════════════════════════════════════════════════════
+    function showModal(id) { document.getElementById(id).classList.remove('hidden'); }
+    function hideModal(id) { document.getElementById(id).classList.add('hidden'); }
+    document.addEventListener('click', e => {
+      if (e.target.classList.contains('modal-overlay')) e.target.classList.add('hidden');
+    });
+  </script>
 </body>
+
 </html>
