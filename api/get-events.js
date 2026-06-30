@@ -171,7 +171,12 @@ IMPORTANTE: Todos los valores de texto (strings) dentro del JSON deben usar comi
       
       const hasQuotaError = errorsList.some(e => e.status === 429);
       if (hasQuotaError) {
-        friendlyMessage = "Límite de cuota excedido (HTTP 429). Google bloquea las peticiones con claves gratuitas de Gemini cuando se originan desde servidores en la nube (como Vercel). Para solucionarlo, debes vincular una tarjeta y activar el plan Pay-as-you-go en Google AI Studio (aistudio.google.com). Seguirá siendo gratis para consumos bajos, pero eliminará el bloqueo de IP de servidor.";
+        res.status(429).json({
+          error: "429_BLOCK",
+          key: apiKey,
+          message: "Límite de cuota excedido (HTTP 429) en el servidor. Ejecutando fallback cliente-side..."
+        });
+        return;
       }
 
       res.status(lastError.status || 500).json({
