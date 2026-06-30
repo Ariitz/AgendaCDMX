@@ -555,7 +555,16 @@
               class="rounded-xl px-3 py-1.5 text-sm font-medium text-gray-800 bg-white/95 border-0 shadow-sm"
               style="min-width:155px;">
           </div>
-
+          <div>
+            <label class="text-xs opacity-60 block mb-0.5">
+              🔑 Gemini API Key
+              <button onclick="showModal('apiModal')" class="underline opacity-80 hover:opacity-100 ml-1">¿Qué
+                es?</button>
+            </label>
+            <input type="password" id="geminiKey" placeholder="AIza… (funciona tras subir a Vercel)"
+              class="rounded-xl px-3 py-1.5 text-sm text-gray-800 bg-white/95 border-0 shadow-sm"
+              style="min-width:200px;">
+          </div>
         </div>
       </div>
     </div>
@@ -763,7 +772,41 @@
     </div>
   </div>
 
-
+  <!-- ══ MODAL: API KEY GEMINI ══════════════════ -->
+  <div id="apiModal" class="modal-overlay hidden">
+    <div class="bg-white rounded-3xl max-w-lg w-full max-h-screen overflow-y-auto p-6">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="font-bold text-xl text-gray-800 serif">🔑 API Key de Gemini</h3>
+        <button onclick="hideModal('apiModal')"
+          class="text-gray-400 hover:text-gray-600 text-3xl leading-none">&times;</button>
+      </div>
+      <div class="space-y-4 text-sm">
+        <div class="bg-amber-50 rounded-2xl p-4 border border-amber-200">
+          <p class="font-bold text-amber-800 mb-1">⚠️ Importante: requiere Vercel</p>
+          <p class="text-amber-700 text-xs leading-relaxed">La API de Gemini bloquea solicitudes desde archivos locales
+            y localhost por una política de seguridad llamada CORS. <strong>Funcionará automáticamente una vez que subas
+              la app a Vercel</strong> (siguiente paso del proyecto).</p>
+        </div>
+        <div class="bg-blue-50 rounded-2xl p-4">
+          <p class="font-semibold text-blue-800 mb-2">📌 Obtener API Key gratis:</p>
+          <ol class="space-y-1.5 list-decimal list-inside text-xs text-blue-700">
+            <li>Ve a <a href="https://aistudio.google.com" target="_blank"
+                class="underline font-medium">aistudio.google.com</a></li>
+            <li>Inicia sesión con tu cuenta Google</li>
+            <li>Clic en <strong>Get API key → Create API key</strong></li>
+            <li>Copia la clave (empieza con AIza…)</li>
+            <li>Pégala en el campo del encabezado</li>
+          </ol>
+        </div>
+        <div class="bg-green-50 rounded-xl p-3 text-xs text-green-700">
+          <p class="font-semibold text-green-800 mb-1">✅ Plan gratuito:</p>
+          <p>15 solicitudes/minuto · 1,500/día · sin costo</p>
+        </div>
+      </div>
+      <button onclick="hideModal('apiModal')" class="mt-4 w-full text-white rounded-2xl py-3 font-semibold"
+        style="background:var(--guinda);">Entendido</button>
+    </div>
+  </div>
 
   <script>
     // ══════════════════════════════════════════════════════
