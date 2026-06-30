@@ -535,7 +535,7 @@
         <div class="flex items-center gap-3">
           <div>
             <h1 class="text-xl md:text-2xl font-bold" style="font-family:'DM Serif Display',serif;">🦅 Agenda Cultural
-              CDMX</h1>
+              CDMX Prueba 1</h1>
             <p class="text-xs opacity-60">Edición Politécnica · Tu ciudad, tu plan</p>
           </div>
           <!-- Cloud status -->
@@ -1484,7 +1484,12 @@
           }
         } else {
           const errData = await res.json().catch(() => ({}));
-          lastFetchError = `API local /api/get-events devolvió status ${res.status}: ${errData?.error || 'Sin mensaje'}`;
+          let errMsg = errData?.error || 'Sin mensaje';
+          if (errData?.attempts && Array.isArray(errData.attempts)) {
+            const list = errData.attempts.map(a => `• <strong>${a.model}</strong> (${a.ver}, tools: ${a.useTools}): status ${a.status} - ${a.message}`).join('<br>');
+            errMsg += `<br><strong class="block mt-2">Historial de intentos en el servidor:</strong><br>${list}`;
+          }
+          lastFetchError = `API local /api/get-events devolvió status ${res.status}: ${errMsg}`;
           console.warn(`Endpoint /api/get-events devolvió status ${res.status}`);
         }
       } catch (err) {

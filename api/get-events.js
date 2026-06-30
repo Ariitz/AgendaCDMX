@@ -32,11 +32,11 @@ export default async function handler(req, res) {
   }
 
   // Buscar la API Key de Gemini: primero en variables de entorno del servidor, y de lo contrario en el header del cliente.
-  const apiKey = process.env.GEMINI_API_KEY || req.headers['x-gemini-key'];
-  if (!apiKey) {
+  const apiKey = (process.env.GEMINI_API_KEY || req.headers['x-gemini-key'] || '').trim();
+  if (!apiKey || apiKey === 'TU_API_KEY_AQUI') {
     res.status(401).json({
-      error: 'No se configuró ninguna API Key de Gemini.',
-      details: 'Por favor, configura GEMINI_API_KEY en las variables de entorno de tu proyecto en Vercel, o ingrésala en el panel del frontend.'
+      error: 'No se configuró ninguna API Key de Gemini válida.',
+      details: 'Por favor, configura la variable de entorno GEMINI_API_KEY en Vercel (o en tu archivo .env local para desarrollo) con una clave válida de Google AI Studio (aistudio.google.com).'
     });
     return;
   }
