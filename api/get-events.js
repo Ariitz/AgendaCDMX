@@ -32,11 +32,11 @@ export default async function handler(req, res) {
   }
 
   // Buscar la API Key de Gemini: primero en variables de entorno del servidor, y de lo contrario en el header del cliente.
-  const apiKey = process.env.GEMINI_API_KEY || req.headers['x-gemini-key'];
-  if (!apiKey) {
+  const apiKey = (process.env.GEMINI_API_KEY || req.headers['x-gemini-key'] || '').trim();
+  if (!apiKey || apiKey === 'TU_API_KEY_AQUI') {
     res.status(401).json({
-      error: 'No se configuró ninguna API Key de Gemini.',
-      details: 'Por favor, configura GEMINI_API_KEY en las variables de entorno de tu proyecto en Vercel, o ingrésala en el panel del frontend.'
+      error: 'No se configuró ninguna API Key de Gemini válida.',
+      details: 'Por favor, configura la variable de entorno GEMINI_API_KEY en Vercel (o en tu archivo .env local para desarrollo) con una clave válida de Google AI Studio (aistudio.google.com).'
     });
     return;
   }
@@ -108,52 +108,81 @@ IMPORTANTE: Todos los valores de texto (strings) dentro del JSON deben usar comi
   }
 
   try {
-    const models = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+    const models = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-flash-latest', 'gemini-1.5-flash-8b', 'gemini-2.0-flash-lite', 'gemini-1.5-pro'];
+    const apiVersions = ['v1beta', 'v1'];
     let lastError = null;
     let data = null;
+    const errorsList = [];
 
+    outerLoop:
     for (const model of models) {
-      try {
-        console.log(`Intentando consultar modelo: ${model}`);
-        const response = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: prompt }] }],
-              tools: [{ google_search: {} }] // Activa la herramienta de búsqueda de Google en vivo
-            })
-          }
-        );
+      for (const ver of apiVersions) {
+        for (const useTools of [true, false]) {
+          try {
+            console.log(`Intentando consultar modelo: ${model} (${ver}, tools: ${useTools})`);
+            const payload = {
+              contents: [{ parts: [{ text: prompt }] }]
+            };
+            if (useTools) {
+              payload.tools = [{ google_search: {} }];
+            }
 
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          const errMsg = errorData?.error?.message || `Error de la API de Gemini: HTTP ${response.status}`;
-          lastError = { status: response.status, message: errMsg, details: errorData };
-          
-          console.warn(`Fallo con modelo ${model}. Status: ${response.status}. Mensaje: ${errMsg}`);
-          
-          // Si es un error de cliente (400, 401, 403), no reintentar con otros modelos
-          if (response.status === 400 || response.status === 401 || response.status === 403) {
-            break;
+            const response = await fetch(
+              `https://generativelanguage.googleapis.com/${ver}/models/${model}:generateContent?key=${apiKey}`,
+              {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+              }
+            );
+
+            if (!response.ok) {
+              const errorData = await response.json().catch(() => ({}));
+              const errMsg = errorData?.error?.message || `Error de la API de Gemini: HTTP ${response.status}`;
+              lastError = { status: response.status, message: errMsg, details: errorData };
+              errorsList.push({ model, ver, useTools, status: response.status, message: errMsg });
+              
+              console.warn(`Fallo con modelo ${model} (${ver}, tools: ${useTools}). Status: ${response.status}. Mensaje: ${errMsg}`);
+              
+              if (response.status === 401 || response.status === 403) {
+                break outerLoop;
+              }
+              continue;
+            }
+
+            data = await response.json();
+            if (data.candidates?.[0]?.content?.parts?.[0]?.text) {
+              lastError = null;
+              break outerLoop;
+            }
+          } catch (fetchErr) {
+            console.error(`Error de red al consultar ${model}:`, fetchErr);
+            const errMsg = fetchErr.message || String(fetchErr);
+            lastError = { status: 500, message: errMsg };
+            errorsList.push({ model, ver, useTools, status: 500, message: errMsg });
           }
-          continue; // Intentar con el siguiente modelo
         }
-
-        data = await response.json();
-        lastError = null;
-        break; // Éxito, salir del bucle
-      } catch (fetchErr) {
-        console.error(`Error de red al consultar ${model}:`, fetchErr);
-        lastError = { status: 500, message: fetchErr.message || String(fetchErr) };
       }
     }
 
     if (lastError) {
+      let friendlyMessage = lastError.message;
+      let friendlyDetails = lastError.details || null;
+      
+      const hasQuotaError = errorsList.some(e => e.status === 429);
+      if (hasQuotaError) {
+        res.status(429).json({
+          error: "429_BLOCK",
+          key: apiKey,
+          message: "Límite de cuota excedido (HTTP 429) en el servidor. Ejecutando fallback cliente-side..."
+        });
+        return;
+      }
+
       res.status(lastError.status || 500).json({
-        error: lastError.message,
-        details: lastError.details || null
+        error: friendlyMessage,
+        details: friendlyDetails,
+        attempts: errorsList
       });
       return;
     }

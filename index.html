@@ -535,7 +535,7 @@
         <div class="flex items-center gap-3">
           <div>
             <h1 class="text-xl md:text-2xl font-bold" style="font-family:'DM Serif Display',serif;">🦅 Agenda Cultural
-              CDMX</h1>
+              CDMX Prueba 2</h1>
             <p class="text-xs opacity-60">Edición Politécnica · Tu ciudad, tu plan</p>
           </div>
           <!-- Cloud status -->
@@ -669,33 +669,11 @@
               </div>
               <div id="planItems"></div>
               <div id="planActions" class="hidden mt-3 space-y-2">
-                <button onclick="exportIcal()"
-                  class="w-full text-white rounded-2xl py-2.5 font-semibold text-sm hover:opacity-90 flex items-center justify-center gap-2"
-                  style="background:var(--guinda);">
-                  📥 Descargar plan (.ics)
-                </button>
                 <button onclick="clearPlan()"
                   class="w-full bg-gray-100 text-gray-600 rounded-2xl py-2 font-medium text-sm hover:bg-gray-200">
                   🗑️ Limpiar plan
                 </button>
               </div>
-            </div>
-          </div>
-
-          <!-- Gemini -->
-          <div class="mt-4 bg-white rounded-3xl shadow-sm border border-purple-100 overflow-hidden">
-            <div class="p-4 bg-gradient-to-r from-purple-50 to-indigo-50 border-b border-purple-100">
-              <h3 class="font-bold text-gray-800 text-sm">🤖 Sugerencia IA (Gemini)</h3>
-              <p class="text-xs text-gray-500 mt-0.5">Disponible tras subir la app a Vercel</p>
-            </div>
-            <div class="p-4">
-              <button onclick="askGemini()"
-                class="w-full text-white rounded-xl py-2.5 text-sm font-semibold hover:opacity-90"
-                style="background:linear-gradient(135deg,#7c3aed,#4f46e5);">
-                ✨ Sugerir con IA
-              </button>
-              <div id="geminiResponse"
-                class="mt-3 text-xs text-gray-700 leading-relaxed hidden bg-purple-50 rounded-xl p-3"></div>
             </div>
           </div>
 
@@ -1399,57 +1377,60 @@
     let currentFilter = 'all';
 
     async function callGeminiApiWithFallback(prompt, apiKey, options = {}) {
-      const models = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+      const models = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-flash-latest', 'gemini-2.0-flash-lite', 'gemini-1.5-pro'];
+      const apiVersions = ['v1beta', 'v1'];
       let lastErr = null;
 
-      const payload = {
-        contents: [{ parts: [{ text: prompt }] }]
-      };
-
-      if (options.googleSearch) {
-        payload.tools = [{ google_search: {} }];
-      }
-
-      if (options.generationConfig) {
-        payload.generationConfig = options.generationConfig;
-      }
-
       for (const model of models) {
-        try {
-          console.log(`Intentando consultar modelo en frontend: ${model}`);
-          const response = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-            {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(payload)
+        for (const ver of apiVersions) {
+          for (const useTools of (options.googleSearch ? [true, false] : [false])) {
+            try {
+              console.log(`Intentando consultar modelo en frontend: ${model} (${ver}, tools: ${useTools})`);
+              const payload = {
+                contents: [{ parts: [{ text: prompt }] }]
+              };
+              if (useTools) {
+                payload.tools = [{ google_search: {} }];
+              }
+              if (options.generationConfig) {
+                payload.generationConfig = options.generationConfig;
+              }
+
+              const response = await fetch(
+                `https://generativelanguage.googleapis.com/${ver}/models/${model}:generateContent?key=${apiKey}`,
+                {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(payload)
+                }
+              );
+
+              if (!response.ok) {
+                const errData = await response.json().catch(() => ({}));
+                const errMsg = errData?.error?.message || `HTTP ${response.status} ${response.statusText}`;
+                lastErr = new Error(errMsg);
+                lastErr.status = response.status;
+                lastErr.details = errData;
+
+                console.warn(`Fallo con modelo ${model} (${ver}) en frontend: ${errMsg}`);
+
+                if (response.status === 401 || response.status === 403) {
+                  throw lastErr;
+                }
+                continue;
+              }
+
+              const data = await response.json();
+              const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+              if (text) {
+                return text;
+              }
+            } catch (err) {
+              if (err.status === 401 || err.status === 403) throw err;
+              console.warn(`Error de red o parseo con ${model} (${ver}) en frontend:`, err);
+              lastErr = err;
             }
-          );
-
-          if (!response.ok) {
-            const errData = await response.json().catch(() => ({}));
-            const errMsg = errData?.error?.message || `HTTP ${response.status} ${response.statusText}`;
-            lastErr = new Error(errMsg);
-            lastErr.status = response.status;
-            lastErr.details = errData;
-
-            console.warn(`Fallo con modelo ${model} en frontend: ${errMsg}`);
-
-            if (response.status === 400 || response.status === 401 || response.status === 403) {
-              break;
-            }
-            continue;
           }
-
-          const data = await response.json();
-          const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (!text) {
-            throw new Error(`Respuesta vacía de ${model}`);
-          }
-          return text;
-        } catch (err) {
-          console.warn(`Error de red o de parseo con ${model} en frontend:`, err);
-          lastErr = err;
         }
       }
 
@@ -1546,7 +1527,81 @@
           }
         } else {
           const errData = await res.json().catch(() => ({}));
-          lastFetchError = `API local /api/get-events devolvió status ${res.status}: ${errData?.error || 'Sin mensaje'}`;
+          if (res.status === 429 && errData?.error === '429_BLOCK' && errData?.key) {
+            console.log('Detectado bloqueo 429 de servidor. Reintentando llamada directa cliente-side...');
+            
+            const prompt = `Busca en internet eventos reales, exposiciones de museos, conciertos, obras de teatro, festivales, mercaditos, bazares, meetups o actividades culturales o sociales que ocurran el día ${dateKey} (año, mes, día específico) en la Ciudad de México (CDMX).
+Consulta fuentes populares como "Donde Ir CDMX", "Cartelera de la Ciudad de México", "Ticketmaster México", "Superboletos", "Boletia", "Eventbrite CDMX", "Fever", "Eventos Politécnico" etc.
+Intenta prioritariamente incluir eventos en grandes recintos y espacios icónicos de la ciudad como: Campo Marte, Palacio de los Deportes, WTC, Auditorio Nacional, Auditorio BlackBerry, Estadio GNP (antes Foro Sol), Estadio CDMX (Azul), Arena CDMX, explanadas de las alcaldías, ferias del libro, Teatro Telcel, Carpa Santa Fe, Zócalo Capitalino, etc.
+Debes devolver entre 15 y 20 eventos reales y activos que se lleven a cabo exactamente ese día. Si no hay suficientes eventos específicos para ese día exacto, busca eventos y exposiciones permanentes o de temporada que estén abiertos ese día de la semana.
+Devuelve los resultados obligatoriamente como un arreglo JSON válido de objetos, y absolutamente NADA más (sin explicaciones, sin texto adicional, sin formato markdown de triple comilla invertida, solo el JSON puro que comience con [ y termine con ]). Cada objeto debe representar un evento con los siguientes campos exactos y estructurados:
+- id: un string único corto (ej. 'live_' + número aleatorio o correlativo)
+- time: string formato de 24 horas 'HH:MM' (ej. '19:00') o la palabra 'Flexible' si no tiene horario específico
+- endTime: string formato de 24 horas 'HH:MM' (ej. '21:30') o 'Flexible'
+- title: nombre completo y atractivo del evento
+- location: nombre del lugar o recinto real (ej. 'Foro Sol', 'Palacio de Bellas Artes', 'Parque España')
+- neighborhood: zona o colonia (ej. 'Roma Norte', 'Centro Histórico', 'Polanco', 'Coyoacán')
+- address: dirección física completa en CDMX
+- lat: latitud aproximada (número decimal, ej. 19.4326) o null si no se conoce
+- lng: longitud aproximada (número decimal, ej. -99.1332) o null si no se conoce
+- dateInfo: texto legible del horario y fecha (ej. 'Lunes 8 de Jun · 19:00 hrs')
+- dateType: 'permanent' | 'seasonal' | 'oneoff' | 'weekly' (elige el que mejor aplique)
+- inst: tipo de institución organizadora (elige entre: 'IPN' | 'UNAM' | 'Premium' | 'Gobierno' | 'Independiente')
+- cost: texto descriptivo del costo (ej. 'Gratis' o 'Inversión: $350' o 'Desde $600')
+- costVal: valor numérico del costo mínimo (ej. 0 para gratis, o un entero como 350)
+- booking: información breve de venta de boletos o reservación (ej. 'Ticketmaster' o 'Entrada libre' o 'Taquilla del recinto')
+- attire: tipo de vestimenta sugerida con emoji (ej. '👟 Cómoda' o '🧥 Casual' o '👔 Smart Casual')
+- net: nivel estimado de networking y conexiones (elige entre: 'Bajo' | 'Medio' | 'Alto')
+- cat: categoría principal (elige entre: 'Arte' | 'Música' | 'Cine' | 'Bazar' | 'Ciencia' | 'Social' | 'Gastronomía' | 'Naturaleza')
+- petFriendly: boolean (true o false)
+- isWildcard: boolean (true si es una actividad flexible que se puede hacer cualquier día, false si es de horario/fecha fija)
+- priority: boolean (true si es un concierto, show o evento de un solo día o de alta relevancia, false en caso contrario)
+- link: URL oficial del evento o de la boletera (o null si no hay)
+- desc: descripción amena y detallada del evento de 2 a 3 oraciones en español.
+
+IMPORTANTE: Todos los valores de texto (strings) dentro del JSON deben usar comillas dobles externas. Si dentro del texto necesitas incluir comillas o citar algo, usa comillas simples (') y NUNCA comillas dobles ("), para evitar romper el formato JSON y que sea directamente parseable con JSON.parse.`;
+
+            try {
+              const text = await callGeminiApiWithFallback(prompt, errData.key, { googleSearch: true });
+              if (text) {
+                let cleanedText = text.trim();
+                const startIdx = cleanedText.indexOf('[');
+                const endIdx = cleanedText.lastIndexOf(']');
+                if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
+                  cleanedText = cleanedText.substring(startIdx, endIdx + 1);
+                } else {
+                  if (cleanedText.startsWith('```json')) {
+                    cleanedText = cleanedText.substring(7, cleanedText.length - 3).trim();
+                  } else if (cleanedText.startsWith('```')) {
+                    cleanedText = cleanedText.substring(3, cleanedText.length - 3).trim();
+                  }
+                }
+                cleanedText = cleanedText.replace(/,(\s*[\]}])/g, '$1');
+                const events = JSON.parse(cleanedText);
+                if (events && Array.isArray(events) && events.length > 0) {
+                  fetchedEventsByDate[dateKey] = events;
+                  saveFetchedEventsLocal();
+                  events.forEach(e => { knownEvents[e.id] = e; });
+                  saveKnownEventsLocal();
+                  if (window.CloudDB && window.CloudDB.enabled()) {
+                    await window.CloudDB.saveCachedEvents(dateKey, events);
+                  }
+                  fallbackActiveForDate[dateKey] = false;
+                  return events;
+                }
+              }
+            } catch (directErr) {
+              lastFetchError = `Llamada directa cliente-side falló tras bloqueo del servidor: ${directErr.message || directErr}`;
+              console.warn(lastFetchError);
+            }
+          } else {
+            let errMsg = errData?.error || 'Sin mensaje';
+            if (errData?.attempts && Array.isArray(errData.attempts)) {
+              const list = errData.attempts.map(a => `• <strong>${a.model}</strong> (${a.ver}, tools: ${a.useTools}): status ${a.status} - ${a.message}`).join('<br>');
+              errMsg += `<details class="mt-2 text-[11px] text-amber-900/80 cursor-pointer"><summary class="font-semibold hover:underline">Ver historial técnico de intentos</summary><div class="mt-1 leading-relaxed font-mono whitespace-pre-wrap">${list}</div></details>`;
+            }
+            lastFetchError = `API local /api/get-events devolvió status ${res.status}: ${errMsg}`;
+          }
           console.warn(`Endpoint /api/get-events devolvió status ${res.status}`);
         }
       } catch (err) {
@@ -1559,7 +1614,7 @@
         try {
           console.log('Intentando llamada directa a Gemini API...');
           const prompt = `Busca en internet eventos reales, exposiciones de museos, conciertos, obras de teatro, festivales, mercaditos, bazares, meetups o actividades culturales o sociales que ocurran el día ${dateKey} (año, mes, día específico) en la Ciudad de México (CDMX).
-Consulta fuentes populares como "Donde Ir CDMX", "Cartelera de la Ciudad de México", "Ticketmaster México", "Superboletos", "Boletia", "Eventbrite CDMX", etc.
+Consulta fuentes populares como "Donde Ir CDMX", "Cartelera de la Ciudad de México", "Ticketmaster México", "Superboletos", "Boletia", "Eventbrite CDMX", "Fever", "Eventos Politécnico" etc.
 Intenta prioritariamente incluir eventos en grandes recintos y espacios icónicos de la ciudad como: Campo Marte, Palacio de los Deportes, WTC, Auditorio Nacional, Auditorio BlackBerry, Estadio GNP (antes Foro Sol), Estadio CDMX (Azul), Arena CDMX, explanadas de las alcaldías, ferias del libro, Teatro Telcel, Carpa Santa Fe, Zócalo Capitalino, etc.
 Debes devolver entre 15 y 20 eventos reales y activos que se lleven a cabo exactamente ese día. Si no hay suficientes eventos específicos para ese día exacto, busca eventos y exposiciones permanentes o de temporada que estén abiertos ese día de la semana.
 Devuelve los resultados obligatoriamente como un arreglo JSON válido de objetos, y absolutamente NADA más (sin explicaciones, sin texto adicional, sin formato markdown de triple comilla invertida, solo el JSON puro que comience con [ y termine con ]). Cada objeto debe representar un evento con los siguientes campos exactos y estructurados:
@@ -1625,7 +1680,7 @@ IMPORTANTE: Todos los valores de texto (strings) dentro del JSON deben usar comi
       }
 
       if (!key && !lastFetchError) {
-        lastFetchError = 'Falta configurar la API Key de Gemini en el panel superior derecho (header) para la búsqueda local.';
+        lastFetchError = 'Sube la app a Vercel para buscar eventos en tiempo real en internet.';
       }
 
       // 5. Fallback absoluto: Retornar null para indicar que debemos usar los estáticos CDMX_EVENTS
@@ -1830,7 +1885,7 @@ IMPORTANTE: Todos los valores de texto (strings) dentro del JSON deben usar comi
       if (fallbackActiveForDate[dateKey]) {
         const alertDiv = document.createElement('div');
         alertDiv.className = "mb-3 rounded-2xl p-3 text-xs bg-amber-50 border border-amber-200 text-amber-800 leading-normal";
-        alertDiv.innerHTML = `⚠️ <strong>Mostrando eventos de respaldo estáticos.</strong> Configura tu 🔑 Gemini API Key en el header o sube la app a Vercel para buscar eventos en tiempo real en internet.<br><span class="text-red-700 font-semibold block mt-1.5">Detalle del error: ${lastFetchError || 'Ninguno especificado'}</span>`;
+        alertDiv.innerHTML = `⚠️ <strong>Mostrando eventos de respaldo estáticos.</strong> Sube la app a Vercel para buscar eventos en tiempo real en internet.<br><span class="text-red-700 font-semibold block mt-1.5">Detalle del error: ${lastFetchError || 'Ninguno especificado'}</span>`;
         cont.appendChild(alertDiv);
       }
 
@@ -2066,6 +2121,64 @@ IMPORTANTE: Todos los valores de texto (strings) dentro del JSON deben usar comi
           const result = await res.json();
           if (result && Array.isArray(result) && result.length > 0) {
             alternativeEvent = result[0];
+          }
+        } else {
+          const errData = await res.json().catch(() => ({}));
+          if (res.status === 429 && errData?.error === '429_BLOCK' && errData?.key) {
+            console.log('Detectado bloqueo 429 de servidor para sustitución. Reintentando llamada directa cliente-side...');
+            const prompt = `Busca en internet un evento alternativo real y activo que ocurra el día ${dateKey} en la Ciudad de México (CDMX) para sustituir al evento "${targetEvent.title}" (que originalmente se realiza en "${targetEvent.location}"). 
+El nuevo evento sugerido debe ser de la misma categoría o estar ubicado en una zona cercana, y tener un perfil de interés similar.
+Devuelve los resultados obligatoriamente como un arreglo JSON válido con un único objeto de evento (debiendo comenzar con [ y terminar con ]), y absolutamente NADA más (sin explicaciones, sin texto adicional, sin formato markdown). El objeto debe tener los siguientes campos exactos y estructurados:
+- id: un string único corto (ej. 'live_alt_' + número aleatorio o correlativo)
+- time: string formato de 24 horas 'HH:MM' o 'Flexible'
+- endTime: string formato de 24 horas 'HH:MM' o 'Flexible'
+- title: nombre completo del evento alternativo sugerido
+- location: nombre del lugar o recinto real
+- neighborhood: zona o colonia
+- address: dirección física completa en CDMX
+- lat: latitud aproximada (número decimal o null)
+- lng: longitud aproximada (número decimal o null)
+- dateInfo: texto legible de la fecha y hora
+- dateType: 'permanent' | 'seasonal' | 'oneoff' | 'weekly'
+- inst: tipo de institución organizadora (elige entre: 'IPN' | 'UNAM' | 'Premium' | 'Gobierno' | 'Independiente')
+- cost: texto descriptivo del costo
+- costVal: valor numérico del costo mínimo (entero o 0)
+- booking: información breve de venta de boletos o reservación
+- attire: tipo de vestimenta sugerida con emoji
+- net: nivel estimado de networking (elige entre: 'Bajo' | 'Medio' | 'Alto')
+- cat: categoría principal (elige entre: 'Arte' | 'Música' | 'Cine' | 'Bazar' | 'Ciencia' | 'Social' | 'Gastronomía' | 'Naturaleza')
+- petFriendly: boolean (true o false)
+- isWildcard: boolean (true si es flexible en día, false si es de fecha fija)
+- priority: boolean (true si es muy relevante o un solo día, false en caso contrario)
+- link: URL oficial o de boletera (o null)
+- desc: descripción amena y detallada del evento de 2 a 3 oraciones en español.
+
+IMPORTANTE: Todos los valores de texto (strings) dentro del JSON deben usar comillas dobles externas. Si dentro del texto necesitas incluir comillas o citar algo, usa comillas simples (') y NUNCA comillas dobles ("), para evitar romper el formato JSON y que sea directamente parseable con JSON.parse.`;
+
+            try {
+              const text = await callGeminiApiWithFallback(prompt, errData.key, { googleSearch: true });
+              if (text) {
+                let cleanedText = text.trim();
+                const startIdx = cleanedText.indexOf('[');
+                const endIdx = cleanedText.lastIndexOf(']');
+                if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
+                  cleanedText = cleanedText.substring(startIdx, endIdx + 1);
+                } else {
+                  if (cleanedText.startsWith('```json')) {
+                    cleanedText = cleanedText.substring(7, cleanedText.length - 3).trim();
+                  } else if (cleanedText.startsWith('```')) {
+                    cleanedText = cleanedText.substring(3, cleanedText.length - 3).trim();
+                  }
+                }
+                cleanedText = cleanedText.replace(/,(\s*[\]}])/g, '$1');
+                const result = JSON.parse(cleanedText);
+                if (result && Array.isArray(result) && result.length > 0) {
+                  alternativeEvent = result[0];
+                }
+              }
+            } catch (directErr) {
+              console.warn('Llamada directa cliente-side falló para sustitución:', directErr);
+            }
           }
         }
       } catch (err) {
@@ -2334,7 +2447,8 @@ IMPORTANTE: Todos los valores de texto (strings) dentro del JSON deben usar comi
     // GEMINI
     // ══════════════════════════════════════════════════════
     async function askGemini() {
-      const key = document.getElementById('geminiKey').value.trim();
+      const keyInput = document.getElementById('geminiKey');
+      const key = keyInput ? keyInput.value.trim() : '';
       const el = document.getElementById('geminiResponse');
       el.classList.remove('hidden');
 
