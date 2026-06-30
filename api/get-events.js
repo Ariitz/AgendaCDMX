@@ -112,6 +112,7 @@ IMPORTANTE: Todos los valores de texto (strings) dentro del JSON deben usar comi
     const apiVersions = ['v1beta', 'v1'];
     let lastError = null;
     let data = null;
+    const errorsList = [];
 
     outerLoop:
     for (const model of models) {
@@ -139,6 +140,7 @@ IMPORTANTE: Todos los valores de texto (strings) dentro del JSON deben usar comi
               const errorData = await response.json().catch(() => ({}));
               const errMsg = errorData?.error?.message || `Error de la API de Gemini: HTTP ${response.status}`;
               lastError = { status: response.status, message: errMsg, details: errorData };
+              errorsList.push({ model, ver, useTools, status: response.status, message: errMsg });
               
               console.warn(`Fallo con modelo ${model} (${ver}, tools: ${useTools}). Status: ${response.status}. Mensaje: ${errMsg}`);
               
@@ -155,7 +157,9 @@ IMPORTANTE: Todos los valores de texto (strings) dentro del JSON deben usar comi
             }
           } catch (fetchErr) {
             console.error(`Error de red al consultar ${model}:`, fetchErr);
-            lastError = { status: 500, message: fetchErr.message || String(fetchErr) };
+            const errMsg = fetchErr.message || String(fetchErr);
+            lastError = { status: 500, message: errMsg };
+            errorsList.push({ model, ver, useTools, status: 500, message: errMsg });
           }
         }
       }
@@ -164,7 +168,8 @@ IMPORTANTE: Todos los valores de texto (strings) dentro del JSON deben usar comi
     if (lastError) {
       res.status(lastError.status || 500).json({
         error: lastError.message,
-        details: lastError.details || null
+        details: lastError.details || null,
+        attempts: errorsList
       });
       return;
     }
