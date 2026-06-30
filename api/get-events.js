@@ -108,7 +108,7 @@ IMPORTANTE: Todos los valores de texto (strings) dentro del JSON deben usar comi
   }
 
   try {
-    const models = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-flash-latest', 'gemini-1.5-flash-8b', 'gemini-2.0-flash-lite', 'gemini-1.5-pro'];
+    const models = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-flash-latest', 'gemini-1.5-flash-8b', 'gemini-2.0-flash-lite', 'gemini-1.5-pro'];
     const apiVersions = ['v1beta', 'v1'];
     let lastError = null;
     let data = null;
