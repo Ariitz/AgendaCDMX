@@ -535,7 +535,7 @@
         <div class="flex items-center gap-3">
           <div>
             <h1 class="text-xl md:text-2xl font-bold" style="font-family:'DM Serif Display',serif;">🦅 Agenda Cultural
-              CDMX Prueba 1</h1>
+              CDMX Prueba 2</h1>
             <p class="text-xs opacity-60">Edición Politécnica · Tu ciudad, tu plan</p>
           </div>
           <!-- Cloud status -->
@@ -1487,7 +1487,7 @@
           let errMsg = errData?.error || 'Sin mensaje';
           if (errData?.attempts && Array.isArray(errData.attempts)) {
             const list = errData.attempts.map(a => `• <strong>${a.model}</strong> (${a.ver}, tools: ${a.useTools}): status ${a.status} - ${a.message}`).join('<br>');
-            errMsg += `<br><strong class="block mt-2">Historial de intentos en el servidor:</strong><br>${list}`;
+            errMsg += `<details class="mt-2 text-[11px] text-amber-900/80 cursor-pointer"><summary class="font-semibold hover:underline">Ver historial técnico de intentos</summary><div class="mt-1 leading-relaxed font-mono whitespace-pre-wrap">${list}</div></details>`;
           }
           lastFetchError = `API local /api/get-events devolvió status ${res.status}: ${errMsg}`;
           console.warn(`Endpoint /api/get-events devolvió status ${res.status}`);

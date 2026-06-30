@@ -108,7 +108,7 @@ IMPORTANTE: Todos los valores de texto (strings) dentro del JSON deben usar comi
   }
 
   try {
-    const models = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-flash-latest', 'gemini-2.0-flash-lite', 'gemini-1.5-pro'];
+    const models = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-flash-latest', 'gemini-1.5-flash-8b', 'gemini-2.0-flash-lite', 'gemini-1.5-pro'];
     const apiVersions = ['v1beta', 'v1'];
     let lastError = null;
     let data = null;
@@ -166,9 +166,17 @@ IMPORTANTE: Todos los valores de texto (strings) dentro del JSON deben usar comi
     }
 
     if (lastError) {
+      let friendlyMessage = lastError.message;
+      let friendlyDetails = lastError.details || null;
+      
+      const hasQuotaError = errorsList.some(e => e.status === 429);
+      if (hasQuotaError) {
+        friendlyMessage = "Límite de cuota excedido (HTTP 429). Google bloquea las peticiones con claves gratuitas de Gemini cuando se originan desde servidores en la nube (como Vercel). Para solucionarlo, debes vincular una tarjeta y activar el plan Pay-as-you-go en Google AI Studio (aistudio.google.com). Seguirá siendo gratis para consumos bajos, pero eliminará el bloqueo de IP de servidor.";
+      }
+
       res.status(lastError.status || 500).json({
-        error: lastError.message,
-        details: lastError.details || null,
+        error: friendlyMessage,
+        details: friendlyDetails,
         attempts: errorsList
       });
       return;
