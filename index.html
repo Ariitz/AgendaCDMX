@@ -103,13 +103,15 @@
         } catch (e) { return null; }
       },
 
-      // Guardar plan + favoritos juntos (llamada unificada)
-      async syncAll(plansByDate, favoritesArray) {
+      // Guardar plan + favoritos + asistidos + pendientes juntos (llamada unificada)
+      async syncAll(plansByDate, favoritesArray, attendedEvents, pendingBucketList) {
         if (!cloudEnabled) return;
         try {
           await setDoc(doc(db, 'users', USER_ID, 'meta', 'allData'), {
             plans: plansByDate,
             favorites: favoritesArray,
+            attended: attendedEvents || {},
+            pending: pendingBucketList || [],
             updatedAt: Date.now()
           });
         } catch (e) { console.warn('syncAll error:', e); }
@@ -674,6 +676,20 @@
                   🗑️ Limpiar plan
                 </button>
               </div>
+            </div>
+          </div>
+
+          <!-- Eventos Pendientes (Bucket List) -->
+          <div class="mt-4 bg-white rounded-3xl shadow-sm border border-emerald-100 overflow-hidden">
+            <div class="p-4 bg-gradient-to-r from-emerald-50 to-teal-50 border-b border-emerald-100">
+              <h3 class="font-bold text-gray-800 text-sm">📌 Mis Eventos Pendientes</h3>
+              <p class="text-xs text-gray-500 mt-0.5">Eventos que no pudiste asistir o guardaste para después</p>
+            </div>
+            <div class="p-4">
+              <div id="pendingEmpty" class="text-center py-6 text-gray-400">
+                <p class="text-xs">¡Todo al día! ✨<br>Los eventos que no marques como asistidos aparecerán aquí.</p>
+              </div>
+              <div id="pendingPanel" class="space-y-3"></div>
             </div>
           </div>
 
@@ -1372,6 +1388,8 @@
     let favorites = new Set(JSON.parse(localStorage.getItem('agendaFavs') || '[]'));
     let fetchedEventsByDate = JSON.parse(localStorage.getItem('agendaFetchedEvents') || '{}');
     let knownEvents = JSON.parse(localStorage.getItem('agendaKnownEvents') || '{}');
+    let attendedEventsByDate = JSON.parse(localStorage.getItem('agendaAttended') || '{}');
+    let pendingBucketList = JSON.parse(localStorage.getItem('agendaPending') || '[]');
     let fallbackActiveForDate = {};
     let lastFetchError = '';
     let currentFilter = 'all';
@@ -1439,9 +1457,11 @@
 
     function savePlansLocal() {
       localStorage.setItem('agendaPlans', JSON.stringify(plansByDate));
+      syncCloud();
     }
     function saveFavsLocal() {
       localStorage.setItem('agendaFavs', JSON.stringify([...favorites]));
+      syncCloud();
     }
     function saveFetchedEventsLocal() {
       localStorage.setItem('agendaFetchedEvents', JSON.stringify(fetchedEventsByDate));
@@ -1449,11 +1469,19 @@
     function saveKnownEventsLocal() {
       localStorage.setItem('agendaKnownEvents', JSON.stringify(knownEvents));
     }
+    function saveAttendedLocal() {
+      localStorage.setItem('agendaAttended', JSON.stringify(attendedEventsByDate));
+      syncCloud();
+    }
+    function savePendingLocal() {
+      localStorage.setItem('agendaPending', JSON.stringify(pendingBucketList));
+      syncCloud();
+    }
 
     // Sincronizar con Firebase si está disponible
     async function syncCloud() {
       if (!window.CloudDB || !window.CloudDB.enabled()) return;
-      await window.CloudDB.syncAll(plansByDate, [...favorites]);
+      await window.CloudDB.syncAll(plansByDate, [...favorites], attendedEventsByDate, pendingBucketList);
       updateCloudUI(true);
     }
 
@@ -1464,12 +1492,22 @@
       if (!data) return;
       if (data.plans) {
         plansByDate = data.plans;
-        savePlansLocal();
       }
       if (data.favorites) {
         favorites = new Set(data.favorites);
-        saveFavsLocal();
       }
+      if (data.attended) {
+        attendedEventsByDate = data.attended;
+        localStorage.setItem('agendaAttended', JSON.stringify(attendedEventsByDate));
+      }
+      if (data.pending) {
+        pendingBucketList = data.pending;
+        localStorage.setItem('agendaPending', JSON.stringify(pendingBucketList));
+      }
+      // Guardar todo localmente
+      localStorage.setItem('agendaPlans', JSON.stringify(plansByDate));
+      localStorage.setItem('agendaFavs', JSON.stringify([...favorites]));
+      
       renderAll();
       updateCloudUI(true);
     }
@@ -1775,6 +1813,7 @@ IMPORTANTE: Todos los valores de texto (strings) dentro del JSON deben usar comi
       updatePlanDate();
       renderEvents();
       renderPlanUI();
+      renderPendingUI();
       renderFestivales();
       renderFavPanel();
     }
@@ -2359,7 +2398,119 @@ IMPORTANTE: Todos los valores de texto (strings) dentro del JSON deben usar comi
       renderPlanUI();
     }
 
+    // ══════════════════════════════════════════════════════
+    // LÓGICA DE EVENTOS PENDIENTES & BUCKET LIST
+    // ══════════════════════════════════════════════════════
+    function isEventExpired(ev) {
+      if (!ev) return true;
+      if (ev.dateType !== 'oneoff') return false;
+
+      let foundDate = null;
+      for (const [dateStr, evList] of Object.entries(fetchedEventsByDate)) {
+        if (evList.some(e => e.id === ev.id)) {
+          foundDate = dateStr;
+          break;
+        }
+      }
+      if (foundDate) {
+        const today = new Date().toISOString().split('T')[0];
+        if (foundDate < today) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    function getNextAvailableDate(ev) {
+      if (isEventExpired(ev)) return null;
+
+      const today = new Date();
+      const days = ev.days || [0,1,2,3,4,5,6];
+      const months = ev.months || null;
+
+      for (let i = 0; i < 90; i++) {
+        const nextDate = new Date(today);
+        nextDate.setDate(today.getDate() + i);
+        const day = nextDate.getDay();
+        const month = nextDate.getMonth() + 1;
+
+        if (days.includes(day)) {
+          if (!months || months.includes(month)) {
+            return nextDate.toISOString().split('T')[0];
+          }
+        }
+      }
+      return null;
+    }
+
+    window.moveToPending = function(id) {
+      removeFromPlan(id);
+      if (!pendingBucketList.includes(id)) {
+        pendingBucketList.push(id);
+        savePendingLocal();
+      }
+      renderPlanUI();
+      renderPendingUI();
+    };
+
+    window.toggleAttended = function(id) {
+      const k = getDateKey();
+      if (!attendedEventsByDate[k]) attendedEventsByDate[k] = [];
+      const idx = attendedEventsByDate[k].indexOf(id);
+      if (idx !== -1) {
+        attendedEventsByDate[k].splice(idx, 1);
+      } else {
+        attendedEventsByDate[k].push(id);
+        const pIdx = pendingBucketList.indexOf(id);
+        if (pIdx !== -1) {
+          pendingBucketList.splice(pIdx, 1);
+          savePendingLocal();
+        }
+      }
+      saveAttendedLocal();
+      renderPlanUI();
+      renderPendingUI();
+    };
+
+    window.removeFromPending = function(id) {
+      pendingBucketList = pendingBucketList.filter(i => i !== id);
+      savePendingLocal();
+      renderPendingUI();
+    };
+
+    window.reschedulePending = function(id) {
+      const ev = CDMX_EVENTS.find(e => e.id === id) || knownEvents[id];
+      if (!ev) return;
+
+      const nextDate = getNextAvailableDate(ev);
+      if (!nextDate) {
+        alert('Este evento ya no tiene fechas disponibles próximamente.');
+        return;
+      }
+
+      const dp = document.getElementById('datePicker');
+      if (dp) {
+        dp.value = nextDate;
+        updatePlanDate();
+      }
+
+      if (!plansByDate[nextDate]) plansByDate[nextDate] = [];
+      if (!plansByDate[nextDate].includes(id)) {
+        plansByDate[nextDate].push(id);
+        savePlansLocal();
+      }
+
+      window.removeFromPending(id);
+      renderAll();
+      alert(`📅 ¡Evento agendado para el ${nextDate}!`);
+    };
+
     function renderPlanUI() {
+      const currentDateKey = getDateKey();
+      const todayString = new Date().toISOString().split('T')[0];
+      const isPastOrToday = currentDateKey <= todayString;
+      const isPast = currentDateKey < todayString;
+
       const plan = getPlan();
       const evs = plan.map(id => CDMX_EVENTS.find(e => e.id === id) || knownEvents[id]).filter(Boolean);
       const sorted = [...evs].sort((a, b) => {
@@ -2380,18 +2531,106 @@ IMPORTANTE: Todos los valores de texto (strings) dentro del JSON deben usar comi
       if (evs.length === 0) { empty.style.display = 'block'; actions.classList.add('hidden'); return; }
       empty.style.display = 'none'; actions.classList.remove('hidden');
 
+      // Si es un día pasado y hay eventos sin marcar asistencia, mostrar un recordatorio amigable
+      if (isPast && evs.some(ev => !(attendedEventsByDate[currentDateKey] || []).includes(ev.id))) {
+        const banner = document.createElement('div');
+        banner.className = "mb-3 rounded-2xl p-2.5 text-[11px] bg-amber-50 border border-amber-200 text-amber-800 leading-normal font-medium";
+        banner.innerHTML = `📅 Este día ya pasó. Marca los eventos a los que asististe con ✅ o muévelos a pendientes con 📌.`;
+        cont.appendChild(banner);
+      }
+
       sorted.forEach(ev => {
+        const isAttended = (attendedEventsByDate[currentDateKey] || []).includes(ev.id);
         const d = document.createElement('div');
-        d.className = 'plan-item';
+        d.className = 'plan-item transition-all duration-150' + (isAttended ? ' bg-emerald-50/60 border-emerald-200 shadow-sm opacity-85' : '');
+        
+        let actionsHtml = '';
+        if (isPastOrToday) {
+          if (isAttended) {
+            actionsHtml = `
+              <div class="flex items-center gap-1.5 mt-2">
+                <span class="text-[10px] bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded-full flex items-center gap-0.5">🎉 Fui</span>
+                <button onclick="toggleAttended('${ev.id}')" class="text-[10px] text-gray-400 hover:text-gray-600 underline">Deshacer</button>
+              </div>`;
+          } else {
+            actionsHtml = `
+              <div class="flex items-center gap-1.5 mt-2">
+                <button onclick="toggleAttended('${ev.id}')" class="btn-sm py-1 px-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-semibold transition-colors flex items-center gap-0.5">
+                  ✅ Fui
+                </button>
+                <button onclick="moveToPending('${ev.id}')" class="btn-sm py-1 px-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-[10px] font-semibold transition-colors flex items-center gap-0.5">
+                  📌 Guardar
+                </button>
+              </div>`;
+          }
+        }
+
+        const titleHtml = isAttended ? `<s class="text-gray-400 font-normal">${ev.title}</s>` : ev.title;
+
         d.innerHTML = `
       <div class="flex items-start justify-between gap-2">
         <div class="flex-1 min-w-0">
           <p class="text-xs font-bold text-guinda">${ev.time === 'Flexible' ? 'Flexible' : ev.time + (ev.endTime !== 'Flexible' ? ' – ' + ev.endTime : '')}</p>
-          <p class="text-sm font-semibold text-gray-800 leading-tight mt-0.5 truncate">${ev.title}</p>
+          <p class="text-sm font-semibold text-gray-800 leading-tight mt-0.5">${titleHtml}</p>
           <p class="text-xs text-gray-400 mt-0.5">${ev.neighborhood}</p>
+          ${actionsHtml}
         </div>
         <button onclick="removeFromPlan('${ev.id}')" class="text-gray-300 hover:text-red-400 shrink-0 text-lg leading-none">✕</button>
       </div>`;
+        cont.appendChild(d);
+      });
+    }
+
+    function renderPendingUI() {
+      const cont = document.getElementById('pendingPanel');
+      const empty = document.getElementById('pendingEmpty');
+      if (!cont) return;
+
+      pendingBucketList = pendingBucketList.filter(id => {
+        const ev = CDMX_EVENTS.find(e => e.id === id) || knownEvents[id];
+        return ev && !isEventExpired(ev);
+      });
+      localStorage.setItem('agendaPending', JSON.stringify(pendingBucketList));
+
+      cont.innerHTML = '';
+
+      if (pendingBucketList.length === 0) {
+        if (empty) empty.style.display = 'block';
+        return;
+      }
+      if (empty) empty.style.display = 'none';
+
+      pendingBucketList.forEach(id => {
+        const ev = CDMX_EVENTS.find(e => e.id === id) || knownEvents[id];
+        if (!ev) return;
+
+        const nextDate = getNextAvailableDate(ev);
+        let nextDateStr = 'No disponible';
+        if (nextDate) {
+          const dObj = new Date(nextDate + 'T12:00:00');
+          nextDateStr = dObj.toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short' });
+        }
+
+        const d = document.createElement('div');
+        d.className = 'plan-item bg-emerald-50/20 border-emerald-100 flex flex-col gap-1.5 p-3 rounded-2xl border';
+        
+        const badgeColor = ev.inst ? ev.inst.toLowerCase() : 'independiente';
+        d.innerHTML = `
+          <div class="flex items-start justify-between gap-2">
+            <div class="flex-1 min-w-0">
+              <span class="badge badge-${badgeColor} shrink-0 mb-1">${ev.inst || 'Independiente'}</span>
+              <p class="text-sm font-semibold text-gray-800 leading-tight">${ev.title}</p>
+              <p class="text-xs text-gray-400 mt-0.5">${ev.neighborhood}</p>
+            </div>
+            <button onclick="removeFromPending('${ev.id}')" class="text-gray-300 hover:text-red-400 shrink-0 text-sm leading-none">✕</button>
+          </div>
+          <div class="flex items-center justify-between border-t border-emerald-100/50 pt-2 mt-1">
+            <span class="text-[10px] text-emerald-800/80 font-medium">🕒 Próximo: ${nextDateStr}</span>
+            <button onclick="reschedulePending('${ev.id}')" class="btn-sm py-1 px-2.5 bg-guinda text-white hover:opacity-90 rounded-lg text-[10px] font-semibold transition-all">
+              📅 Agendar
+            </button>
+          </div>
+        `;
         cont.appendChild(d);
       });
     }
