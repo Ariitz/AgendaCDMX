@@ -537,7 +537,7 @@
         <div class="flex items-center gap-3">
           <div>
             <h1 class="text-xl md:text-2xl font-bold" style="font-family:'DM Serif Display',serif;">🦅 Agenda Cultural
-              CDMX Prueba 2</h1>
+              CDMX</h1>
             <p class="text-xs opacity-60">Edición Politécnica · Tu ciudad, tu plan</p>
           </div>
           <!-- Cloud status -->
@@ -1507,7 +1507,7 @@
       // Guardar todo localmente
       localStorage.setItem('agendaPlans', JSON.stringify(plansByDate));
       localStorage.setItem('agendaFavs', JSON.stringify([...favorites]));
-      
+
       renderAll();
       updateCloudUI(true);
     }
@@ -1567,7 +1567,7 @@
           const errData = await res.json().catch(() => ({}));
           if (res.status === 429 && errData?.error === '429_BLOCK' && errData?.key) {
             console.log('Detectado bloqueo 429 de servidor. Reintentando llamada directa cliente-side...');
-            
+
             const prompt = `Busca en internet eventos reales, exposiciones de museos, conciertos, obras de teatro, festivales, mercaditos, bazares, meetups o actividades culturales o sociales que ocurran el día ${dateKey} (año, mes, día específico) en la Ciudad de México (CDMX).
 Consulta fuentes populares como "Donde Ir CDMX", "Cartelera de la Ciudad de México", "Ticketmaster México", "Superboletos", "Boletia", "Eventbrite CDMX", "Fever", "Eventos Politécnico" etc.
 Intenta prioritariamente incluir eventos en grandes recintos y espacios icónicos de la ciudad como: Campo Marte, Palacio de los Deportes, WTC, Auditorio Nacional, Auditorio BlackBerry, Estadio GNP (antes Foro Sol), Estadio CDMX (Azul), Arena CDMX, explanadas de las alcaldías, ferias del libro, Teatro Telcel, Carpa Santa Fe, Zócalo Capitalino, etc.
@@ -2425,7 +2425,7 @@ IMPORTANTE: Todos los valores de texto (strings) dentro del JSON deben usar comi
       if (isEventExpired(ev)) return null;
 
       const today = new Date();
-      const days = ev.days || [0,1,2,3,4,5,6];
+      const days = ev.days || [0, 1, 2, 3, 4, 5, 6];
       const months = ev.months || null;
 
       for (let i = 0; i < 90; i++) {
@@ -2443,7 +2443,7 @@ IMPORTANTE: Todos los valores de texto (strings) dentro del JSON deben usar comi
       return null;
     }
 
-    window.moveToPending = function(id) {
+    window.moveToPending = function (id) {
       removeFromPlan(id);
       if (!pendingBucketList.includes(id)) {
         pendingBucketList.push(id);
@@ -2453,7 +2453,7 @@ IMPORTANTE: Todos los valores de texto (strings) dentro del JSON deben usar comi
       renderPendingUI();
     };
 
-    window.toggleAttended = function(id) {
+    window.toggleAttended = function (id) {
       const k = getDateKey();
       if (!attendedEventsByDate[k]) attendedEventsByDate[k] = [];
       const idx = attendedEventsByDate[k].indexOf(id);
@@ -2472,13 +2472,13 @@ IMPORTANTE: Todos los valores de texto (strings) dentro del JSON deben usar comi
       renderPendingUI();
     };
 
-    window.removeFromPending = function(id) {
+    window.removeFromPending = function (id) {
       pendingBucketList = pendingBucketList.filter(i => i !== id);
       savePendingLocal();
       renderPendingUI();
     };
 
-    window.reschedulePending = function(id) {
+    window.reschedulePending = function (id) {
       const ev = CDMX_EVENTS.find(e => e.id === id) || knownEvents[id];
       if (!ev) return;
 
@@ -2543,7 +2543,7 @@ IMPORTANTE: Todos los valores de texto (strings) dentro del JSON deben usar comi
         const isAttended = (attendedEventsByDate[currentDateKey] || []).includes(ev.id);
         const d = document.createElement('div');
         d.className = 'plan-item transition-all duration-150' + (isAttended ? ' bg-emerald-50/60 border-emerald-200 shadow-sm opacity-85' : '');
-        
+
         let actionsHtml = '';
         if (isPastOrToday) {
           if (isAttended) {
@@ -2613,7 +2613,7 @@ IMPORTANTE: Todos los valores de texto (strings) dentro del JSON deben usar comi
 
         const d = document.createElement('div');
         d.className = 'plan-item bg-emerald-50/20 border-emerald-100 flex flex-col gap-1.5 p-3 rounded-2xl border';
-        
+
         const badgeColor = ev.inst ? ev.inst.toLowerCase() : 'independiente';
         d.innerHTML = `
           <div class="flex items-start justify-between gap-2">
